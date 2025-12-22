@@ -19,13 +19,12 @@ service firebase.storage {
     function isUserCompany(companyId) {
       return isSignedIn() && getUserData(request.auth.uid).companyId == companyId;
     }
-
-    function isClientViewerForOrder(orderId) {
+    
+    function isClientViewerForClient(clientId) {
       let userData = getUserData(request.auth.uid);
-      let orderData = getOrderData(orderId);
       return isSignedIn() && 
              userData.role == 'client_viewer' && 
-             userData.clientId == orderData.clientId;
+             userData.clientId == clientId;
     }
 
     // --- Rules ---
@@ -35,14 +34,21 @@ service firebase.storage {
       allow read, write: if false;
     }
 
-    // Allow read/write on evidence files only for authorized users of that company,
-    // or for a client viewer if the order belongs to them.
+    // Allow read/write on evidence files for authorized users.
+    // - Company users can read/write if they belong to the same company as the evidence.
+    // - Client viewers can ONLY read if the order is associated with their client ID.
     match /evidence/{companyId}/{orderId}/{fileName} {
-      allow read, write: if isSignedIn() && 
-                           isUserCompany(companyId) &&
-                           (getOrderData(orderId) != null); // Ensure order exists
-                           
-      allow read: if isClientViewerForOrder(orderId);
+      allow read: if isSignedIn() &&
+                    getOrderData(orderId) != null &&
+                    getOrderData(orderId).companyId == companyId &&
+                    (
+                      isUserCompany(companyId) ||
+                      isClientViewerForClient(getOrderData(orderId).clientId)
+                    );
+      allow write: if isSignedIn() &&
+                     getOrderData(orderId) != null &&
+                     getOrderData(orderId).companyId == companyId &&
+                     isUserCompany(companyId);
     }
   }
 }

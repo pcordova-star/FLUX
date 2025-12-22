@@ -33,7 +33,6 @@ service cloud.firestore {
 
     function isWarehouseOperatorForWarehouse(warehouseId) {
       let userData = getUserData(request.auth.uid);
-      // Ensure warehouseIds is a list before checking for presence
       return isSignedIn() && 
              userData.role == 'warehouse_operator' && 
              'warehouseIds' in userData &&
@@ -46,6 +45,7 @@ service cloud.firestore {
     // Users can read their own data. Admins/Super Admins can read users in the same company.
     // Admins/Super Admins can create/update users in the same company.
     // An admin cannot make themselves a super_admin.
+    // Deletes are disabled to enforce soft-deletes via `isActive` flag.
     match /users/{userId} {
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
@@ -58,6 +58,7 @@ service cloud.firestore {
                       !(request.auth.uid == userId && 
                         resource.data.role == 'admin' && 
                         request.resource.data.role == 'super_admin');
+      allow delete: if false;
     }
 
     // Admins can read their company doc, only Super Admins can write to any company doc.
@@ -87,25 +88,30 @@ service cloud.firestore {
     }
 
     // Admins/Super Admins, or a client viewer for the specific client can read orders.
-    // Admins/Super Admins or an assigned warehouse operator can write to orders.
+    // Admins/Super Admins or an assigned warehouse operator can write to orders,
+    // with immutability constraints on companyId and clientId.
     match /orders/{orderId} {
       allow read: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(resource.data.clientId);
       allow write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
-                      (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
+                      (
+                        isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && 
+                        isSameCompanyAsUser(request.resource.data.companyId) &&
+                        // Ensure critical fields are not changed on update
+                        request.resource.data.companyId == resource.data.companyId &&
+                        request.resource.data.clientId == resource.data.clientId
+                      );
     }
     
     // Admins or assigned warehouse operators can read/write inventory balances.
     match /inventory_balances/{balanceId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId);
-      allow write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
-                      (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
+      allow read, write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(resource.data.companyId)) ||
+                           (isWarehouseOperatorForWarehouse(resource.data.warehouseId) && isSameCompanyAsUser(resource.data.companyId));
     }
     
     // Admins or assigned warehouse operators can read/write inventory ledger.
     match /inventory_ledger/{ledgerId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId);
-      allow write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
-                      (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
+      allow read, write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(resource.data.companyId)) ||
+                           (isWarehouseOperatorForWarehouse(resource.data.warehouseId) && isSameCompanyAsUser(resource.data.companyId));
     }
 
     // Fallback rule for any other collection that has a companyId field.
