@@ -48,11 +48,12 @@ export interface Location {
   createdAt: Timestamp;
 }
 
-export type OrderStatus = 'created' | 'received' | 'picking' | 'packed' | 'shipped' | 'delivered' | 'cancelled';
-export const ORDER_STATUSES: OrderStatus[] = ['created', 'received', 'picking', 'packed', 'shipped', 'delivered', 'cancelled'];
+export const ORDER_STATUSES = ['created', 'received', 'picking', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
+export type OrderStatus = typeof ORDER_STATUSES[number];
 
-export type OrderPriority = 'express' | 'same_day' | 'next_day' | 'scheduled';
-export const ORDER_PRIORITIES: OrderPriority[] = ['express', 'same_day', 'next_day', 'scheduled'];
+
+export const ORDER_PRIORITIES = ['express', 'same_day', 'next_day', 'scheduled'] as const;
+export type OrderPriority = typeof ORDER_PRIORITIES[number];
 
 
 export interface Order {
