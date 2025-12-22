@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase-client';
 import {
   doc,
@@ -21,7 +20,7 @@ interface PickingOperationInput {
  * Replaces invalid characters (including whitespace and slashes) with underscores.
  */
 function sanitizeDocId(id: string): string {
-    return id.replace(/[.*~/[\]\s]/g, '_');
+    return id.replace(/[.*~/[\]\s?#%]/g, '_');
 }
 
 /**
@@ -91,9 +90,7 @@ export async function reserveForOrder(input: PickingOperationInput, userId: stri
           clientId,
           sku: item.sku,
           deltaQty: 0,
-          reservedDeltaQty: item.qty,
           type: 'reserve',
-          refType: 'order',
           relatedOrderId: orderId,
           createdAt: serverTimestamp(),
           createdBy: userId,
@@ -189,9 +186,7 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
           clientId,
           sku: item.sku,
           deltaQty: -item.qty,
-          reservedDeltaQty: -item.qty,
           type: 'pick',
-          refType: 'order',
           relatedOrderId: orderId,
           createdAt: serverTimestamp(),
           createdBy: userId,
@@ -219,5 +214,3 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
     throw new Error(error.message || "La operación de confirmación de picking falló.");
   }
 }
-
-    
