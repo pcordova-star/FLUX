@@ -104,7 +104,7 @@ export interface InventoryLedger {
   deltaQty: number;
   reservedDeltaQty?: number;
   type: InventoryLedgerType;
-  refType: 'manual' | 'po' | 'order';
+  refType?: 'manual' | 'po';
   relatedOrderId?: string;
   note?: string;
   createdAt: Timestamp | null;
