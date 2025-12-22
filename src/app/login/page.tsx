@@ -5,8 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { signInWithEmailAndPassword } from 'firebase/auth';
-import { auth } from '@/lib/firebase-client';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +37,7 @@ const loginSchema = z.object({
 export default function LoginPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof loginSchema>>({
@@ -53,7 +51,7 @@ export default function LoginPage() {
   async function onSubmit(values: z.infer<typeof loginSchema>) {
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      await login(values.email, values.password);
       toast({
         title: 'Éxito',
         description: 'Has iniciado sesión correctamente.',
@@ -64,7 +62,7 @@ export default function LoginPage() {
       toast({
         variant: 'destructive',
         title: 'Fallo de inicio de sesión',
-        description: error.message || 'Ocurrió un error desconocido.',
+        description: error.message || 'Credenciales incorrectas o usuario inactivo.',
       });
     } finally {
       setIsLoading(false);
@@ -83,7 +81,7 @@ export default function LoginPage() {
           <div className="mb-4 flex justify-center">
             <AppLogo className="h-12 w-12 text-primary" />
           </div>
-          <CardTitle className="text-2xl">Klog Wems Core</CardTitle>
+          <CardTitle className="text-2xl">FLUX Wems Core</CardTitle>
           <CardDescription>
             Inicia sesión para acceder a tu sistema de gestión de almacenes.
           </CardDescription>

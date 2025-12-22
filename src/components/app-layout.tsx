@@ -3,8 +3,6 @@
 import React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
-import { signOut } from 'firebase/auth';
-import { auth } from '@/lib/firebase-client';
 import { useAuth } from '@/context/auth-context';
 
 import {
@@ -53,28 +51,31 @@ const navItems = [
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, claims, loading } = useAuth();
+  const { user, appUser, role, loading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
-
-  const handleLogout = async () => {
-    await signOut(auth);
-    router.push('/login');
-  };
 
   React.useEffect(() => {
     if (!loading && !user) {
       router.replace('/login');
     }
-
-    if (!loading && user && pathname.startsWith('/admin') && claims?.role !== 'superadmin') {
-      router.replace('/dashboard');
+    
+    // Route protection based on role
+    if (!loading && user && appUser) {
+      if (pathname.startsWith('/admin') && role !== 'super_admin') {
+        router.replace('/dashboard');
+      }
     }
-  }, [user, loading, router, pathname, claims]);
+  }, [user, appUser, role, loading, router, pathname]);
 
-  if (loading || !user) {
+  if (loading || !user || !appUser) {
     return <PageSpinner />;
   }
+
+  const handleLogout = async () => {
+    await logout();
+    router.push('/login');
+  };
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -91,7 +92,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarHeader>
           <div className="flex items-center gap-2 p-2">
             <AppLogo className="w-8 h-8 text-primary" />
-            <span className="text-lg font-semibold">Klog Wems</span>
+            <span className="text-lg font-semibold">FLUX Wems</span>
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -109,7 +110,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </Link>
               </SidebarMenuItem>
             ))}
-            {claims?.role === 'superadmin' && (
+            {role === 'super_admin' && (
               <SidebarMenuItem>
                  <Link href="/admin/seed" legacyBehavior passHref>
                   <SidebarMenuButton
@@ -137,10 +138,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </Avatar>
                   <div className="text-left">
                     <p className="text-sm font-medium leading-none">
-                      {user.displayName || 'Usuario'}
+                      {appUser.displayName || 'Usuario'}
                     </p>
                     <p className="text-xs text-muted-foreground leading-none">
-                      {user.email}
+                      {appUser.email}
                     </p>
                   </div>
                 </div>
@@ -149,9 +150,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.displayName || 'Usuario'}</p>
+                  <p className="text-sm font-medium leading-none">{appUser.displayName || 'Usuario'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
-                    {user.email}
+                    {appUser.email}
                   </p>
                 </div>
               </DropdownMenuLabel>
@@ -167,7 +168,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <SidebarInset>
         <header className="flex h-14 items-center gap-4 border-b bg-background/95 px-4 backdrop-blur-sm md:hidden">
             <SidebarTrigger />
-            <span className="font-semibold">Klog Wems</span>
+            <span className="font-semibold">FLUX Wems</span>
         </header>
         <main className="flex-1">{children}</main>
       </SidebarInset>

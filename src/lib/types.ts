@@ -1,10 +1,54 @@
 import type { Timestamp } from 'firebase/firestore';
 
+export type UserRole = 
+  | 'super_admin'
+  | 'admin'
+  | 'supervisor'
+  | 'warehouse_operator'
+  | 'driver'
+  | 'client_viewer';
+
+export interface AppUser {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  role: UserRole;
+  companyId: string;
+  clientId?: string;
+  warehouseIds?: string[];
+  isActive: boolean;
+  createdAt: Timestamp;
+}
+
 export interface Company {
   id: string;
   name: string;
   createdAt: Timestamp;
 }
+
+export interface Client {
+  id: string;
+  name: string;
+  companyId: string;
+  createdAt: Timestamp;
+}
+
+export interface Warehouse {
+  id: string;
+  name: string;
+  companyId: string;
+  createdAt: Timestamp;
+}
+
+export interface Location {
+  id: string;
+  name: string;
+  warehouseId: string;
+  companyId: string;
+  createdAt: Timestamp;
+}
+
+// Below are other types from the original app, kept for reference
 
 export interface UserProfile {
   uid: string;
@@ -20,32 +64,6 @@ export interface Customer {
   companyId: string;
   name: string;
   address: string;
-  createdAt: Timestamp;
-}
-
-export interface Warehouse {
-  id: string;
-  companyId: string;
-  name: string;
-  location: string;
-  createdAt: Timestamp;
-}
-
-export interface Location {
-  id: string;
-  warehouseId: string;
-  name: string; // e.g., Aisle 1, Shelf B, Bin 3
-  barcode: string;
-  createdAt: Timestamp;
-}
-
-export interface Product {
-  id: string;
-  companyId: string;
-  sku: string;
-  name: string;
-  description: string;
-  price: number;
   createdAt: Timestamp;
 }
 
@@ -65,6 +83,16 @@ export interface OrderItem {
   productId: string;
   quantity: number;
   price: number;
+}
+
+export interface Product {
+  id: string;
+  companyId: string;
+  sku: string;
+  name: string;
+  description: string;
+  price: number;
+  createdAt: Timestamp;
 }
 
 export interface InventoryBalance {

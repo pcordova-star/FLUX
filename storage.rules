@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to get user's company from Firestore
+    function getCompanyId(userId) {
+      return get(/databases/(default)/documents/users/$(userId)).data.companyId;
+    }
+
+    // Allow reads if the user is authenticated.
+    // In a real app, you'd likely restrict this further based on company, order, etc.
+    // For example: match /evidences/{companyId}/{fileName}
+    // and check if getCompanyId(request.auth.uid) == companyId
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+  }
+}

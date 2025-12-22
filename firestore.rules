@@ -1,0 +1,98 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper Functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUserData(userId) {
+      return get(/databases/$(database)/documents/users/$(userId)).data;
+    }
+    
+    function isSuperAdmin(userId) {
+      return getUserData(userId).role == 'super_admin';
+    }
+
+    function isAdmin(userId) {
+      let userRole = getUserData(userId).role;
+      return userRole == 'admin' || userRole == 'super_admin';
+    }
+    
+    function isSameCompany(companyId) {
+      return isSignedIn() && getUserData(request.auth.uid).companyId == companyId;
+    }
+
+    function isClientViewerInClient(clientId) {
+      let userData = getUserData(request.auth.uid);
+      return userData.role == 'client_viewer' && userData.clientId == clientId;
+    }
+    
+    function belongsToWarehouse(warehouseId) {
+      let userData = getUserData(request.auth.uid);
+      return 'warehouseIds' in userData && warehouseId in userData.warehouseIds;
+    }
+
+    // Collection Rules
+    match /users/{userId} {
+      // READ:
+      // - Un usuario puede leer su propio perfil.
+      // - Admins y Super Admins pueden leer perfiles de su misma compañía.
+      allow read: if isSignedIn() && (
+                    request.auth.uid == userId || 
+                    (isAdmin(request.auth.uid) && isSameCompany(resource.data.companyId))
+                  );
+
+      // CREATE, UPDATE:
+      // - Admins y Super Admins pueden crear/actualizar usuarios en su misma compañía.
+      allow write: if isSignedIn() && isAdmin(request.auth.uid) && isSameCompany(request.resource.data.companyId);
+    }
+    
+    match /companies/{companyId} {
+      allow read: if isSignedIn() && isSameCompany(companyId);
+      allow write: if isSignedIn() && isSuperAdmin(request.auth.uid);
+    }
+    
+    match /clients/{clientId} {
+       allow read: if isSignedIn() && (
+                     isSameCompany(resource.data.companyId) ||
+                     isClientViewerInClient(clientId)
+                   );
+      allow write: if isSignedIn() && isAdmin(request.auth.uid) && isSameCompany(request.resource.data.companyId);
+    }
+
+    match /warehouses/{warehouseId} {
+      allow read: if isSignedIn() && (isSameCompany(resource.data.companyId) || belongsToWarehouse(warehouseId));
+      allow write: if isSignedIn() && isAdmin(request.auth.uid) && isSameCompany(request.resource.data.companyId);
+    }
+    
+    match /{path=**}/{document=**} {
+        // DEFAULT DENY
+        // General rule: Secure all documents by companyId.
+        // Applies to Orders, Inventory, Products, etc.
+        allow read, write: if isSignedIn() && isSameCompany(resource.data.companyId);
+    }
+    
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (isSameCompany(resource.data.companyId) || isClientViewerInClient(resource.data.clientId));
+      
+      // Warehouse operators can only modify orders of their assigned warehouses
+      allow write: if isSignedIn() && (
+        (isAdmin(request.auth.uid) && isSameCompany(request.resource.data.companyId)) ||
+        (getUserData(request.auth.uid).role == 'warehouse_operator' && belongsToWarehouse(request.resource.data.warehouseId))
+      );
+    }
+    
+    match /inventory/{inventoryId} {
+       allow read: if isSignedIn() && isSameCompany(resource.data.companyId);
+
+       // Warehouse operators can only modify inventory of their assigned warehouses
+       allow write: if isSignedIn() && (
+        (isAdmin(request.auth.uid) && isSameCompany(request.resource.data.companyId)) ||
+        (getUserData(request.auth.uid).role == 'warehouse_operator' && belongsToWarehouse(request.resource.data.warehouseId))
+      );
+    }
+  }
+}

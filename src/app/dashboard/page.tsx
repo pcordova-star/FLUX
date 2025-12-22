@@ -43,7 +43,7 @@ export default function DashboardPage() {
         </div>
         <Card>
             <CardHeader>
-                <CardTitle>Bienvenido a Klog Wems Core</CardTitle>
+                <CardTitle>Bienvenido a FLUX Wems Core</CardTitle>
                 <CardDescription>
                 Este es tu centro de control para gestionar operaciones de almacén, pedidos e inventario.
                 </CardDescription>
