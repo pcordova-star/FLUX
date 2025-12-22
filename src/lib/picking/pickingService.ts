@@ -1,21 +1,27 @@
+
 import { db } from '@/lib/firebase-client';
 import {
   doc,
   collection,
   serverTimestamp,
   runTransaction,
-  writeBatch,
   increment,
-  getDoc,
 } from 'firebase/firestore';
 import type { Order, OrderEvent } from '@/lib/types';
-import { sanitizeDocId } from '../inventory/inventoryService';
 
 interface PickingOperationInput {
   companyId: string;
   warehouseId: string;
   clientId: string;
   orderId: string;
+}
+
+/**
+ * Sanitizes a string to be used as a Firestore document ID.
+ * Replaces invalid characters (including whitespace and slashes) with underscores.
+ */
+function sanitizeDocId(id: string): string {
+    return id.replace(/[.*~/[\]\s]/g, '_');
 }
 
 /**
@@ -42,7 +48,7 @@ export async function reserveForOrder(input: PickingOperationInput, userId: stri
         throw new Error(`No se puede reservar stock para una orden en estado "${order.status}".`);
       }
 
-      if (order.items.length === 0) {
+      if (!order.items || order.items.length === 0) {
         throw new Error('La orden no tiene ítems para reservar.');
       }
 
@@ -52,8 +58,12 @@ export async function reserveForOrder(input: PickingOperationInput, userId: stri
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const balanceDoc = await transaction.get(balanceRef);
 
-        const currentQty = balanceDoc.exists() ? balanceDoc.data().qty : 0;
-        const currentReservedQty = balanceDoc.exists() ? balanceDoc.data().reservedQty : 0;
+        if (!balanceDoc.exists()) {
+          throw new Error(`No existe balance de inventario para el SKU ${item.sku}. Imposible reservar.`);
+        }
+
+        const currentQty = balanceDoc.data().qty || 0;
+        const currentReservedQty = balanceDoc.data().reservedQty || 0;
         const availableQty = currentQty - currentReservedQty;
         
         if (availableQty < item.qty) {
@@ -127,17 +137,16 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
       }
 
       const order = orderDoc.data() as Order;
-      // You might want a more specific status check here, e.g., must be 'reserved'.
-      // For now, we allow picking if it's created or received.
-      if (order.status !== 'created' && order.status !== 'received') {
+      // Allow picking if it's created, received, or already being picked (idempotency)
+      if (!['created', 'received', 'picking'].includes(order.status)) {
          throw new Error(`No se puede confirmar el picking para una orden en estado "${order.status}".`);
       }
 
-      if (order.items.length === 0) {
+      if (!order.items || order.items.length === 0) {
         throw new Error('La orden no tiene ítems para confirmar el picking.');
       }
 
-      // Check if there is enough reservation
+      // Check if there is enough reservation and stock
       for (const item of order.items) {
         const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
@@ -147,9 +156,15 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
             throw new Error(`No existe balance de inventario para el SKU ${item.sku}. Imposible confirmar pick.`);
         }
         
-        const currentReservedQty = balanceDoc.data().reservedQty || 0;
+        const data = balanceDoc.data();
+        const currentQty = data.qty || 0;
+        const currentReservedQty = data.reservedQty || 0;
+
         if (currentReservedQty < item.qty) {
           throw new Error(`Reserva insuficiente para ${item.sku}. Necesario: ${item.qty}, Reservado: ${currentReservedQty}`);
+        }
+        if (currentQty < item.qty) {
+          throw new Error(`Stock físico insuficiente para ${item.sku}. Necesario: ${item.qty}, Físico: ${currentQty}`);
         }
       }
 
@@ -183,8 +198,10 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
         });
       }
 
-      // Update order status
-      transaction.update(orderRef, { status: 'picking' });
+      // Update order status, only if it's not already 'picking'
+      if (order.status !== 'picking') {
+        transaction.update(orderRef, { status: 'picking' });
+      }
 
       // Add order event
       const eventRef = doc(collection(db, 'orders', orderId, 'events'));
@@ -202,3 +219,5 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
     throw new Error(error.message || "La operación de confirmación de picking falló.");
   }
 }
+
+    
