@@ -18,10 +18,10 @@ interface ReceiveStockInput {
 
 /**
  * Sanitizes a string to be used as a Firestore document ID.
- * Replaces invalid characters with underscores.
+ * Replaces invalid characters (including whitespace) with underscores.
  */
 function sanitizeDocId(id: string): string {
-    return id.replace(/[.*~/[\]]/g, '_');
+    return id.replace(/[.*~/[\]\s]/g, '_');
 }
 
 /**
@@ -36,14 +36,16 @@ export async function receiveStock(input: ReceiveStockInput, userId: string): Pr
     throw new Error('La cantidad debe ser positiva.');
   }
 
-  // Use a sanitized, deterministic ID for the balance document
-  const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${sku}`);
+  // Use a sanitized, deterministic ID for the balance document.
+  // SKU is trimmed and lower-cased for consistency.
+  const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${sku.trim().toLowerCase()}`);
   const balanceRef = doc(db, 'inventory_balances', balanceId);
   const ledgerRef = doc(collection(db, 'inventory_ledger'));
 
   try {
     await runTransaction(db, async (transaction) => {
       const balanceDoc = await transaction.get(balanceRef);
+      const currentQty = balanceDoc.exists() ? balanceDoc.data().qty : 0;
 
       if (!balanceDoc.exists()) {
         // If balance doesn't exist, create it.
