@@ -76,7 +76,8 @@ export default function OrderDetailPage() {
   const { user, companyId, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-  const [isPickingActionPending, startPickingActionTransition] = useTransition();
+  const [isReserving, startReserveTransition] = useTransition();
+  const [isConfirming, startConfirmTransition] = useTransition();
   
   const [orderSnapshot, loading, error] = useDocument(
     orderId ? doc(db, 'orders', orderId) : null
@@ -104,26 +105,44 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handlePickingAction = (action: 'reserve' | 'confirm') => {
+  const handleReserveStock = () => {
     if (!order || !user || !companyId) return;
 
-    startPickingActionTransition(async () => {
-      const actionFunc = action === 'reserve' ? reserveForOrder : confirmPick;
-      const successMessage = action === 'reserve' ? 'Stock reservado correctamente.' : 'Picking confirmado correctamente.';
-      const actionName = action === 'reserve' ? 'reservar' : 'confirmar pick';
-      
+    startReserveTransition(async () => {
       try {
-        await actionFunc({
+        await reserveForOrder({
           orderId,
           companyId,
           warehouseId: order.warehouseId,
           clientId: order.clientId,
         }, user.uid);
-        toast({ title: 'Éxito', description: successMessage });
+        toast({ title: 'Éxito', description: 'Stock reservado correctamente.' });
       } catch (e: any) {
         toast({
           variant: 'destructive',
-          title: `Error al ${actionName}`,
+          title: `Error al reservar stock`,
+          description: e.message,
+        });
+      }
+    });
+  };
+
+  const handleConfirmPick = () => {
+    if (!order || !user || !companyId) return;
+
+    startConfirmTransition(async () => {
+      try {
+        await confirmPick({
+          orderId,
+          companyId,
+          warehouseId: order.warehouseId,
+          clientId: order.clientId,
+        }, user.uid);
+        toast({ title: 'Éxito', description: 'Picking confirmado correctamente.' });
+      } catch (e: any) {
+        toast({
+          variant: 'destructive',
+          title: `Error al confirmar picking`,
           description: e.message,
         });
       }
@@ -145,9 +164,12 @@ export default function OrderDetailPage() {
   if (user && companyId && order.companyId !== companyId) {
      return <AppLayout><p className="p-4">No tienes permiso para ver esta orden.</p></AppLayout>;
   }
+  
+  const canPerformActions = !!(user && companyId && order.companyId === companyId);
+  const canReserve = canPerformActions && ['created', 'received'].includes(order.status);
+  const canConfirmPick = canPerformActions && ['created', 'received', 'picking'].includes(order.status);
 
-  const canReserve = ['created', 'received'].includes(order.status);
-  const canConfirmPick = ['created', 'received', 'picking'].includes(order.status);
+  const isActionPending = isUpdatingStatus || isReserving || isConfirming;
 
   return (
     <AppLayout>
@@ -155,7 +177,15 @@ export default function OrderDetailPage() {
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Orden #{order.orderNumber}</h1>
           <div className="flex items-center space-x-2">
-            <Select onValueChange={(value) => handleStatusChange(value as OrderStatus)} value={order.status} disabled={isUpdatingStatus}>
+             <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending}>
+              {isReserving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Reservar Stock
+            </Button>
+            <Button onClick={handleConfirmPick} disabled={!canConfirmPick || isActionPending}>
+              {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Confirmar Picking
+            </Button>
+            <Select onValueChange={(value) => handleStatusChange(value as OrderStatus)} value={order.status} disabled={isActionPending}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Cambiar estado" />
               </SelectTrigger>
@@ -165,7 +195,6 @@ export default function OrderDetailPage() {
                 ))}
               </SelectContent>
             </Select>
-            {(isUpdatingStatus || isPickingActionPending) && <Loader2 className="animate-spin" />}
           </div>
         </div>
 
@@ -192,20 +221,6 @@ export default function OrderDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>Ítems de la Orden</CardTitle>
-              <div className="flex items-center space-x-2 pt-2">
-                <Button 
-                    onClick={() => handlePickingAction('reserve')} 
-                    disabled={!canReserve || isPickingActionPending}
-                >
-                  Reservar Stock
-                </Button>
-                 <Button 
-                    onClick={() => handlePickingAction('confirm')} 
-                    disabled={!canConfirmPick || isPickingActionPending}
-                 >
-                  Confirmar Picking
-                </Button>
-              </div>
             </CardHeader>
             <CardContent>
                 {order.items && order.items.length > 0 ? (
