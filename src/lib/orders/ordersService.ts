@@ -116,15 +116,18 @@ export async function addOrderEvent(
   orderId: string,
   eventData: AddOrderEventData
 ): Promise<void> {
-  const order = await getOrder(orderId);
-  if (!order) {
+  const orderRef = doc(db, 'orders', orderId);
+  const orderSnap = await getDoc(orderRef);
+
+  if (!orderSnap.exists()) {
     throw new Error("Order not found, cannot add event.");
   }
+  const orderData = orderSnap.data();
 
   const eventsCollection = collection(db, 'orders', orderId, 'events');
   await addDoc(eventsCollection, {
     ...eventData,
-    companyId: order.companyId, // Source companyId from the parent order
+    companyId: orderData.companyId, // Source companyId from the parent order
     createdAt: serverTimestamp(),
   });
 }
