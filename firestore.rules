@@ -107,7 +107,7 @@ service cloud.firestore {
       
       // Rules for the 'events' subcollection
       match /events/{eventId} {
-        allow read: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(get(/databases/$(database)/documents/orders/$(orderId)).data.clientId);
+        allow read: if isSameCompanyAsUser(get(/databases/$(database)/documents/orders/$(orderId)).data.companyId) || isClientViewerForClient(get(/databases/$(database)/documents/orders/$(orderId)).data.clientId);
         allow create: if isSameCompanyAsUser(request.resource.data.companyId) &&
                          (isAdmin(request.auth.uid) || isWarehouseOperatorForWarehouse(get(/databases/$(database)/documents/orders/$(orderId)).data.warehouseId));
         allow update, delete: if false;

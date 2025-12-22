@@ -58,7 +58,8 @@ export default function OrdersPage() {
           </CardHeader>
           <CardContent>
             {error && <p className="text-destructive">Error: {error.message}</p>}
-            {orders.length === 0 && !loading ? (
+            {loading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}
+            {!loading && orders.length === 0 ? (
               <p>No se encontraron pedidos.</p>
             ) : (
               <Table>

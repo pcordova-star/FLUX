@@ -50,6 +50,9 @@ export interface Location {
 
 export type OrderStatus = 'created' | 'received' | 'picking' | 'packed' | 'shipped' | 'delivered' | 'cancelled';
 export const ORDER_STATUSES: OrderStatus[] = ['created', 'received', 'picking', 'packed', 'shipped', 'delivered', 'cancelled'];
+export type OrderPriority = 'express' | 'same_day' | 'next_day' | 'scheduled';
+export const ORDER_PRIORITIES: OrderPriority[] = ['express', 'same_day', 'next_day', 'scheduled'];
+
 
 export interface Order {
   id: string;
@@ -59,7 +62,7 @@ export interface Order {
   orderNumber: string;
   promiseAt: Timestamp;
   status: OrderStatus;
-  priority: 'low' | 'medium' | 'high';
+  priority: OrderPriority;
   createdAt: Timestamp;
   createdBy: string; // user uid
 }

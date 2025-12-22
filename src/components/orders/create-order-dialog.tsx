@@ -18,7 +18,7 @@ import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Timestamp } from 'firebase/firestore';
+import { ORDER_PRIORITIES, type OrderPriority } from '@/lib/types';
 
 interface CreateOrderDialogProps {
   isOpen: boolean;
@@ -29,7 +29,7 @@ const formSchema = z.object({
   orderNumber: z.string().min(1, 'El número de orden es requerido.'),
   clientId: z.string().min(1, 'El cliente es requerido.'),
   warehouseId: z.string().min(1, 'El almacén es requerido.'),
-  priority: z.enum(['low', 'medium', 'high']),
+  priority: z.enum(ORDER_PRIORITIES),
   promiseAt: z.date({
     required_error: "La fecha promesa es requerida.",
   }),
@@ -46,7 +46,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
       orderNumber: '',
       clientId: 'dummy-client-id', // Placeholder
       warehouseId: 'dummy-warehouse-id', // Placeholder
-      priority: 'medium',
+      priority: 'scheduled',
     },
   });
 
@@ -60,7 +60,6 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
       await createOrder({
         ...values,
         companyId,
-        promiseAt: Timestamp.fromDate(values.promiseAt),
       }, user.uid);
 
       toast({
@@ -138,9 +137,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="low">Baja</SelectItem>
-                      <SelectItem value="medium">Media</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
+                      {ORDER_PRIORITIES.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                     </SelectContent>
                   </Select>
                   <FormMessage />

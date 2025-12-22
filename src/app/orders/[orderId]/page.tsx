@@ -1,12 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { useParams } from 'next/navigation';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
-import { getOrder, updateOrderStatus } from '@/lib/orders/ordersService';
+import { updateOrderStatus } from '@/lib/orders/ordersService';
 import type { Order, OrderEvent, OrderStatus } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
 import { format } from 'date-fns';
@@ -16,7 +16,6 @@ import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase-client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ORDER_STATUSES } from '@/lib/types';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PackageCheck, Package, ShoppingCart, Truck, CheckCircle, XCircle } from 'lucide-react';
 
@@ -38,10 +37,10 @@ function OrderTimeline({ order }: { order: Order }) {
     query(collection(db, 'orders', order.id, 'events'), orderBy('createdAt', 'desc'))
   );
 
-  const events = eventsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderEvent)) || [];
-
-  if (loading) return <Loader2 className="animate-spin" />;
+  if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>;
   if (error) return <p className="text-destructive">Error al cargar eventos: {error.message}</p>;
+
+  const events = eventsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderEvent)) || [];
 
   return (
     <div className="space-y-6">
@@ -53,7 +52,7 @@ function OrderTimeline({ order }: { order: Order }) {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                 <Icon className="h-4 w-4 text-muted-foreground" />
               </span>
-              <div className="h-full w-px bg-border"></div>
+              { events.length > 1 && event.id !== events[events.length - 1].id && <div className="h-full w-px bg-border my-1"></div> }
             </div>
             <div>
               <p className="font-medium">{event.message}</p>
@@ -71,13 +70,14 @@ function OrderTimeline({ order }: { order: Order }) {
 
 
 export default function OrderDetailPage() {
-  const { orderId } = useParams();
+  const params = useParams();
+  const orderId = params.orderId as string;
   const { user, companyId, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   
   const [orderSnapshot, loading, error] = useDocument(
-    typeof orderId === 'string' ? doc(db, 'orders', orderId) : null
+    orderId ? doc(db, 'orders', orderId) : null
   );
 
   const order = orderSnapshot?.exists() ? { id: orderSnapshot.id, ...orderSnapshot.data() } as Order : null;
@@ -115,10 +115,9 @@ export default function OrderDetailPage() {
   }
   
   // Security check
-  if (order.companyId !== companyId) {
+  if (user && companyId && order.companyId !== companyId) {
      return <AppLayout><p className="p-4">No tienes permiso para ver esta orden.</p></AppLayout>;
   }
-
 
   return (
     <AppLayout>
