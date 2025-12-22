@@ -32,8 +32,8 @@ import { AppLogo } from '@/components/icons';
 import { useAuth } from '@/context/auth-context';
 
 const loginSchema = z.object({
-  email: z.string().email({ message: 'Invalid email address.' }),
-  password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
+  email: z.string().email({ message: 'Dirección de correo electrónico inválida.' }),
+  password: z.string().min(6, { message: 'La contraseña debe tener al menos 6 caracteres.' }),
 });
 
 export default function LoginPage() {
@@ -55,16 +55,16 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, values.email, values.password);
       toast({
-        title: 'Success',
-        description: 'Logged in successfully.',
+        title: 'Éxito',
+        description: 'Has iniciado sesión correctamente.',
       });
       router.push('/dashboard');
     } catch (error: any) {
       console.error(error);
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message || 'An unknown error occurred.',
+        title: 'Fallo de inicio de sesión',
+        description: error.message || 'Ocurrió un error desconocido.',
       });
     } finally {
       setIsLoading(false);
@@ -85,7 +85,7 @@ export default function LoginPage() {
           </div>
           <CardTitle className="text-2xl">Klog Wems Core</CardTitle>
           <CardDescription>
-            Sign in to access your warehouse management system.
+            Inicia sesión para acceder a tu sistema de gestión de almacenes.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -96,9 +96,9 @@ export default function LoginPage() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>Correo Electrónico</FormLabel>
                     <FormControl>
-                      <Input placeholder="name@example.com" {...field} />
+                      <Input placeholder="nombre@ejemplo.com" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -109,7 +109,7 @@ export default function LoginPage() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>Contraseña</FormLabel>
                     <FormControl>
                       <Input type="password" placeholder="••••••••" {...field} />
                     </FormControl>
@@ -121,14 +121,14 @@ export default function LoginPage() {
                 {isLoading && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Sign In
+                Iniciar Sesión
               </Button>
             </form>
           </Form>
         </CardContent>
         <CardFooter>
           <p className="text-center text-sm text-muted-foreground w-full">
-            Contact support for access.
+            Contacta a soporte para obtener acceso.
           </p>
         </CardFooter>
       </Card>

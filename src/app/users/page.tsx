@@ -10,11 +10,11 @@ export default function UsersPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Manage Users</CardTitle>
-            <CardDescription>This is where you will manage user accounts and roles.</CardDescription>
+            <CardTitle>Gestionar Usuarios</CardTitle>
+            <CardDescription>Aquí es donde gestionarás las cuentas de usuario y los roles.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>User management functionality will be implemented here.</p>
+            <p>La funcionalidad de gestión de usuarios se implementará aquí.</p>
           </CardContent>
         </Card>
       </div>

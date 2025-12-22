@@ -10,11 +10,11 @@ export default function InventoryPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Manage Inventory</CardTitle>
-            <CardDescription>This is where you will manage inventory balances and movements.</CardDescription>
+            <CardTitle>Gestionar Inventario</CardTitle>
+            <CardDescription>Aquí es donde gestionarás los saldos y movimientos de inventario.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>Inventory management functionality will be implemented here.</p>
+            <p>La funcionalidad de gestión de inventario se implementará aquí.</p>
           </CardContent>
         </Card>
       </div>

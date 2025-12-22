@@ -16,7 +16,7 @@ export default function SeedPage() {
       const result = await seedDatabase();
       if (result.success) {
         toast({
-          title: 'Success',
+          title: 'Éxito',
           description: result.message,
         });
       } else {
@@ -33,16 +33,16 @@ export default function SeedPage() {
     <AppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Admin Console</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Consola de Administración</h1>
         </div>
         <Card className="max-w-md">
           <CardHeader>
-            <CardTitle>Seed Database</CardTitle>
-            <CardDescription>Initialize the application with starting data. This action should only be performed once.</CardDescription>
+            <CardTitle>Inicializar Base de Datos</CardTitle>
+            <CardDescription>Inicializa la aplicación con datos de partida. Esta acción solo debe realizarse una vez.</CardDescription>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Clicking this button will populate the Firestore database with initial collections and documents required for the application to function correctly. This includes creating a default company, admin user, and other necessary records.
+              Al hacer clic en este botón, se llenará la base de datos de Firestore con las colecciones y documentos iniciales necesarios para que la aplicación funcione correctamente. Esto incluye la creación de una empresa predeterminada, un usuario administrador y otros registros necesarios.
             </p>
           </CardContent>
           <CardFooter>
@@ -52,7 +52,7 @@ export default function SeedPage() {
               ) : (
                 <Database className="mr-2 h-4 w-4" />
               )}
-              {isPending ? 'Seeding...' : 'Seed Database'}
+              {isPending ? 'Inicializando...' : 'Inicializar Base de Datos'}
             </Button>
           </CardFooter>
         </Card>

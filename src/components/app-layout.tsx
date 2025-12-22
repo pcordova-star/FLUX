@@ -137,7 +137,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   </Avatar>
                   <div className="text-left">
                     <p className="text-sm font-medium leading-none">
-                      {user.displayName || 'User'}
+                      {user.displayName || 'Usuario'}
                     </p>
                     <p className="text-xs text-muted-foreground leading-none">
                       {user.email}
@@ -149,7 +149,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuContent className="w-56" align="end" forceMount>
               <DropdownMenuLabel className="font-normal">
                 <div className="flex flex-col space-y-1">
-                  <p className="text-sm font-medium leading-none">{user.displayName || 'User'}</p>
+                  <p className="text-sm font-medium leading-none">{user.displayName || 'Usuario'}</p>
                   <p className="text-xs leading-none text-muted-foreground">
                     {user.email}
                   </p>
@@ -158,7 +158,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>
                 <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
+                <span>Cerrar Sesión</span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

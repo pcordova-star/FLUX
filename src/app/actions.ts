@@ -14,18 +14,18 @@ export async function seedDatabase() {
     await seedCollection.add({
       seededAt: timestamp,
       status: 'success',
-      description: 'Initial database seed action performed.'
+      description: 'Acción de inicialización de la base de datos realizada.'
     });
     
-    console.log('Database seeded successfully at', timestamp);
+    console.log('Base de datos inicializada correctamente en', timestamp);
 
     // Revalidate the path to show updated data if you were displaying logs.
     revalidatePath('/admin/seed');
     
-    return { success: true, message: 'Database seeded successfully.' };
+    return { success: true, message: 'Base de datos inicializada correctamente.' };
   } catch (error) {
-    console.error('Error seeding database:', error);
-    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred.';
-    return { success: false, message: `Failed to seed database: ${errorMessage}` };
+    console.error('Error inicializando la base de datos:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+    return { success: false, message: `Fallo al inicializar la base de datos: ${errorMessage}` };
   }
 }

@@ -10,11 +10,11 @@ export default function OrdersPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Manage Orders</CardTitle>
-            <CardDescription>This is where you will manage customer orders.</CardDescription>
+            <CardTitle>Gestionar Pedidos</CardTitle>
+            <CardDescription>Aquí es donde gestionarás los pedidos de los clientes.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>Order management functionality will be implemented here.</p>
+            <p>La funcionalidad de gestión de pedidos se implementará aquí.</p>
           </CardContent>
         </Card>
       </div>

@@ -10,11 +10,11 @@ export default function ProductsPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Manage Products</CardTitle>
-            <CardDescription>This is where you will manage your product catalog.</CardDescription>
+            <CardTitle>Gestionar Productos</CardTitle>
+            <CardDescription>Aquí es donde gestionarás tu catálogo de productos.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>Product management functionality will be implemented here.</p>
+            <p>La funcionalidad de gestión de productos se implementará aquí.</p>
           </CardContent>
         </Card>
       </div>

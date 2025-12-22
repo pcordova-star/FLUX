@@ -10,11 +10,11 @@ export default function WarehousesPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Manage Warehouses</CardTitle>
-            <CardDescription>This is where you will manage your warehouses and locations.</CardDescription>
+            <CardTitle>Gestionar Almacenes</CardTitle>
+            <CardDescription>Aquí es donde gestionarás tus almacenes y ubicaciones.</CardDescription>
           </CardHeader>
           <CardContent>
-            <p>Warehouse management functionality will be implemented here.</p>
+            <p>La funcionalidad de gestión de almacenes se implementará aquí.</p>
           </CardContent>
         </Card>
       </div>
