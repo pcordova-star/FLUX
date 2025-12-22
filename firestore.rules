@@ -108,14 +108,22 @@ service cloud.firestore {
     
     // Admins or assigned warehouse operators can read/write inventory balances.
     match /inventory_balances/{balanceId} {
-      allow read, write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(resource.data.companyId)) ||
-                           (isWarehouseOperatorForWarehouse(resource.data.warehouseId) && isSameCompanyAsUser(resource.data.companyId));
+      allow read: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
+      allow create: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
+                       (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
+      allow update: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
+                       (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId) && request.resource.data.companyId == resource.data.companyId);
+      allow delete: if false;
     }
     
     // Admins or assigned warehouse operators can read/write inventory ledger.
     match /inventory_ledger/{ledgerId} {
-      allow read, write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(resource.data.companyId)) ||
-                           (isWarehouseOperatorForWarehouse(resource.data.warehouseId) && isSameCompanyAsUser(resource.data.companyId));
+      allow read: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
+      allow create: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
+                       (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
+      allow update: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
+                       (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId) && request.resource.data.companyId == resource.data.companyId);
+      allow delete: if false;
     }
 
     // Fallback rule for any other collection that has a companyId field.
