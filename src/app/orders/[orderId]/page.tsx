@@ -22,7 +22,7 @@ import { Loader2, PackageCheck, Package, ShoppingCart, Truck, CheckCircle, XCirc
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
-const statusIcons = {
+const statusIcons: Record<string, any> = {
   created: ShoppingCart,
   received: Package,
   picking: Package,
@@ -31,7 +31,7 @@ const statusIcons = {
   delivered: CheckCircle,
   cancelled: XCircle,
   info: Package,
-  error: XCircle
+  error: XCircle,
 };
 
 function OrderTimeline({ order }: { order: Order }) {
@@ -42,7 +42,7 @@ function OrderTimeline({ order }: { order: Order }) {
   if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>;
   if (error) return <p className="text-destructive">Error al cargar eventos: {error.message}</p>;
 
-  const events = eventsSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as OrderEvent)) || [];
+  const events = eventsSnapshot?.docs.map(d => ({ id: d.id, ...d.data() } as OrderEvent)) || [];
 
   return (
     <div className="space-y-6">
@@ -54,18 +54,20 @@ function OrderTimeline({ order }: { order: Order }) {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                 <Icon className="h-4 w-4 text-muted-foreground" />
               </span>
-              { idx < events.length - 1 && <div className="h-full w-px bg-border my-1"></div> }
+              {idx < events.length - 1 && <div className="h-full w-px bg-border my-1" />}
             </div>
             <div>
               <p className="font-medium">{event.message}</p>
               <p className="text-sm text-muted-foreground">
-                {event.createdAt ? format(event.createdAt.toDate(), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es }) : '...'}
+                {event.createdAt
+                  ? format(event.createdAt.toDate(), "d 'de' MMMM, yyyy 'a las' HH:mm", { locale: es })
+                  : '...'}
               </p>
             </div>
           </div>
         );
       })}
-       {events.length === 0 && <p>No hay eventos para esta orden.</p>}
+      {events.length === 0 && <p>No hay eventos para esta orden.</p>}
     </div>
   );
 }
@@ -73,20 +75,25 @@ function OrderTimeline({ order }: { order: Order }) {
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.orderId as string;
+
   const { user, companyId, loading: authLoading } = useAuth();
   const { toast } = useToast();
+
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [isReserving, startReserveTransition] = useTransition();
   const [isConfirming, startConfirmTransition] = useTransition();
-  
+
   const [orderSnapshot, loading, error] = useDocument(
     orderId ? doc(db, 'orders', orderId) : null
   );
 
-  const order = orderSnapshot?.exists() ? { id: orderSnapshot.id, ...orderSnapshot.data() } as Order : null;
+  const order = orderSnapshot?.exists()
+    ? ({ id: orderSnapshot.id, ...orderSnapshot.data() } as Order)
+    : null;
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order || !user) return;
+
     setIsUpdatingStatus(true);
     try {
       await updateOrderStatus(order.id, newStatus, user.uid);
@@ -110,18 +117,21 @@ export default function OrderDetailPage() {
 
     startReserveTransition(async () => {
       try {
-        await reserveForOrder({
-          orderId,
-          companyId,
-          warehouseId: order.warehouseId,
-          clientId: order.clientId,
-        }, user.uid);
+        await reserveForOrder(
+          {
+            orderId: order.id,
+            companyId,
+            warehouseId: order.warehouseId,
+            clientId: order.clientId,
+          },
+          user.uid
+        );
         toast({ title: 'Éxito', description: 'Stock reservado correctamente.' });
       } catch (e: any) {
         toast({
           variant: 'destructive',
-          title: `Error al reservar stock`,
-          description: e.message,
+          title: 'Error al reservar stock',
+          description: e.message || 'No se pudo reservar stock.',
         });
       }
     });
@@ -132,42 +142,56 @@ export default function OrderDetailPage() {
 
     startConfirmTransition(async () => {
       try {
-        await confirmPick({
-          orderId,
-          companyId,
-          warehouseId: order.warehouseId,
-          clientId: order.clientId,
-        }, user.uid);
+        await confirmPick(
+          {
+            orderId: order.id,
+            companyId,
+            warehouseId: order.warehouseId,
+            clientId: order.clientId,
+          },
+          user.uid
+        );
         toast({ title: 'Éxito', description: 'Picking confirmado correctamente.' });
       } catch (e: any) {
         toast({
           variant: 'destructive',
-          title: `Error al confirmar picking`,
-          description: e.message,
+          title: 'Error al confirmar picking',
+          description: e.message || 'No se pudo confirmar el picking.',
         });
       }
     });
   };
 
-  if (loading || authLoading) {
-    return <PageSpinner />;
-  }
-  
+  if (loading || authLoading) return <PageSpinner />;
+
   if (error) {
-    return <AppLayout><p className="p-4 text-destructive">Error: {error.message}</p></AppLayout>;
+    return (
+      <AppLayout>
+        <p className="p-4 text-destructive">Error: {error.message}</p>
+      </AppLayout>
+    );
   }
 
   if (!order) {
-    return <AppLayout><p className="p-4">Orden no encontrada.</p></AppLayout>;
+    return (
+      <AppLayout>
+        <p className="p-4">Orden no encontrada.</p>
+      </AppLayout>
+    );
   }
-  
+
+  // Security check
   if (user && companyId && order.companyId !== companyId) {
-     return <AppLayout><p className="p-4">No tienes permiso para ver esta orden.</p></AppLayout>;
+    return (
+      <AppLayout>
+        <p className="p-4">No tienes permiso para ver esta orden.</p>
+      </AppLayout>
+    );
   }
-  
+
   const canPerformActions = !!(user && companyId && order.companyId === companyId);
   const canReserve = canPerformActions && ['created', 'received'].includes(order.status);
-  const canConfirmPick = canPerformActions && ['created', 'received', 'picking'].includes(order.status);
+  const canConfirmPicking = canPerformActions && ['created', 'received', 'picking'].includes(order.status);
 
   const isActionPending = isUpdatingStatus || isReserving || isConfirming;
 
@@ -176,75 +200,94 @@ export default function OrderDetailPage() {
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Orden #{order.orderNumber}</h1>
+
           <div className="flex items-center space-x-2">
-             <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending}>
+            <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending}>
               {isReserving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Reservar Stock
             </Button>
-            <Button onClick={handleConfirmPick} disabled={!canConfirmPick || isActionPending}>
+
+            <Button onClick={handleConfirmPick} disabled={!canConfirmPicking || isActionPending}>
               {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Confirmar Picking
             </Button>
-            <Select onValueChange={(value) => handleStatusChange(value as OrderStatus)} value={order.status} disabled={isActionPending}>
+
+            <Select
+              onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+              value={order.status}
+              disabled={isActionPending}
+            >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Cambiar estado" />
               </SelectTrigger>
               <SelectContent>
-                {ORDER_STATUSES.map(status => (
-                  <SelectItem key={status} value={status}>{status}</SelectItem>
+                {ORDER_STATUSES.map((status) => (
+                  <SelectItem key={status} value={status}>
+                    {status}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+
+            {isUpdatingStatus && <Loader2 className="animate-spin" />}
           </div>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader><CardTitle>Estado Actual</CardTitle></CardHeader>
-            <CardContent><Badge variant={order.status === 'cancelled' ? 'destructive' : 'default'}>{order.status}</Badge></CardContent>
+            <CardContent>
+              <Badge variant={order.status === 'cancelled' ? 'destructive' : 'default'}>
+                {order.status}
+              </Badge>
+            </CardContent>
           </Card>
+
           <Card>
             <CardHeader><CardTitle>Fecha Promesa</CardTitle></CardHeader>
             <CardContent>{order.promiseAt ? format(order.promiseAt.toDate(), 'dd/MM/yyyy') : 'N/A'}</CardContent>
           </Card>
-           <Card>
+
+          <Card>
             <CardHeader><CardTitle>Prioridad</CardTitle></CardHeader>
             <CardContent>{order.priority}</CardContent>
           </Card>
-           <Card>
+
+          <Card>
             <CardHeader><CardTitle>Almacén</CardTitle></CardHeader>
             <CardContent>{order.warehouseId}</CardContent>
           </Card>
         </div>
-        
+
         <div className="grid gap-4 md:grid-cols-2">
           <Card>
             <CardHeader>
               <CardTitle>Ítems de la Orden</CardTitle>
             </CardHeader>
             <CardContent>
-                {order.items && order.items.length > 0 ? (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>SKU</TableHead>
-                        <TableHead className="text-right">Cantidad</TableHead>
+              {order.items && order.items.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>SKU</TableHead>
+                      <TableHead className="text-right">Cantidad</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {order.items.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell className="font-medium">{item.sku}</TableCell>
+                        <TableCell className="text-right">{item.qty}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {order.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell className="font-medium">{item.sku}</TableCell>
-                          <TableCell className="text-right">{item.qty}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                ) : (
-                    <p className="text-sm text-muted-foreground">Esta orden no tiene ítems.</p>
-                )}
+                    ))}
+                  </TableBody>
+                </Table>
+              ) : (
+                <p className="text-sm text-muted-foreground">Esta orden no tiene ítems.</p>
+              )}
             </CardContent>
           </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Línea de Tiempo</CardTitle>
