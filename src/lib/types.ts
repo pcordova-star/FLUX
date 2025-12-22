@@ -69,7 +69,7 @@ export interface Order {
 }
 
 export type OrderEvent = {
-  id?: string;
+  id: string;
   companyId: string;
   type: OrderStatus | 'info' | 'error';
   message: string;
