@@ -48,8 +48,33 @@ export interface Location {
   createdAt: Timestamp;
 }
 
-// Below are other types from the original app, kept for reference
+export type OrderStatus = 'created' | 'received' | 'picking' | 'packed' | 'shipped' | 'delivered' | 'cancelled';
+export const ORDER_STATUSES: OrderStatus[] = ['created', 'received', 'picking', 'packed', 'shipped', 'delivered', 'cancelled'];
 
+export interface Order {
+  id: string;
+  companyId: string;
+  clientId: string;
+  warehouseId: string;
+  orderNumber: string;
+  promiseAt: Timestamp;
+  status: OrderStatus;
+  priority: 'low' | 'medium' | 'high';
+  createdAt: Timestamp;
+  createdBy: string; // user uid
+}
+
+export type OrderEvent = {
+  id?: string;
+  companyId: string;
+  type: OrderStatus | 'info' | 'error';
+  message: string;
+  createdAt: Timestamp;
+  createdBy: string; // user uid
+}
+
+
+// Below are other types from the original app, kept for reference
 export interface UserProfile {
   uid: string;
   email: string | null;
@@ -65,18 +90,6 @@ export interface Customer {
   name: string;
   address: string;
   createdAt: Timestamp;
-}
-
-export type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-
-export interface Order {
-  id: string;
-  companyId: string;
-  customerId: string;
-  orderDate: Timestamp;
-  status: OrderStatus;
-  items: OrderItem[];
-  total: number;
 }
 
 export interface OrderItem {

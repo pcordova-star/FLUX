@@ -104,6 +104,14 @@ service cloud.firestore {
           request.resource.data.clientId == resource.data.clientId
         );
       allow delete: if false; // Enforce soft deletes
+      
+      // Rules for the 'events' subcollection
+      match /events/{eventId} {
+        allow read: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(get(/databases/$(database)/documents/orders/$(orderId)).data.clientId);
+        allow create: if isSameCompanyAsUser(request.resource.data.companyId) &&
+                         (isAdmin(request.auth.uid) || isWarehouseOperatorForWarehouse(get(/databases/$(database)/documents/orders/$(orderId)).data.warehouseId));
+        allow update, delete: if false;
+      }
     }
     
     // Admins or assigned warehouse operators can read/write inventory balances.
