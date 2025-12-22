@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useParams } from 'next/navigation';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
 import { updateOrderStatus } from '@/lib/orders/ordersService';
+import { reserveForOrder, confirmPick } from '@/lib/picking/pickingService';
 import type { Order, OrderEvent, OrderStatus } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
 import { format } from 'date-fns';
@@ -18,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ORDER_STATUSES } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, PackageCheck, Package, ShoppingCart, Truck, CheckCircle, XCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 const statusIcons = {
   created: ShoppingCart,
@@ -30,7 +33,6 @@ const statusIcons = {
   info: Package,
   error: XCircle
 };
-
 
 function OrderTimeline({ order }: { order: Order }) {
   const [eventsSnapshot, loading, error] = useCollection(
@@ -68,13 +70,13 @@ function OrderTimeline({ order }: { order: Order }) {
   );
 }
 
-
 export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.orderId as string;
   const { user, companyId, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [isPickingActionPending, startPickingActionTransition] = useTransition();
   
   const [orderSnapshot, loading, error] = useDocument(
     orderId ? doc(db, 'orders', orderId) : null
@@ -84,7 +86,7 @@ export default function OrderDetailPage() {
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
     if (!order || !user) return;
-    setIsUpdating(true);
+    setIsUpdatingStatus(true);
     try {
       await updateOrderStatus(order.id, newStatus, user.uid);
       toast({
@@ -98,8 +100,33 @@ export default function OrderDetailPage() {
         description: e.message || 'No se pudo actualizar el estado de la orden.',
       });
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingStatus(false);
     }
+  };
+
+  const handlePickingAction = (action: 'reserve' | 'confirm') => {
+    if (!order || !user || !companyId) return;
+
+    startPickingActionTransition(async () => {
+      const actionFunc = action === 'reserve' ? reserveForOrder : confirmPick;
+      const successMessage = action === 'reserve' ? 'Stock reservado correctamente.' : 'Picking confirmado correctamente.';
+      
+      try {
+        await actionFunc({
+          orderId,
+          companyId,
+          warehouseId: order.warehouseId,
+          clientId: order.clientId,
+        }, user.uid);
+        toast({ title: 'Éxito', description: successMessage });
+      } catch (e: any) {
+        toast({
+          variant: 'destructive',
+          title: `Error al ${action === 'reserve' ? 'reservar' : 'confirmar pick'}`,
+          description: e.message,
+        });
+      }
+    });
   };
 
   if (loading || authLoading) {
@@ -114,7 +141,6 @@ export default function OrderDetailPage() {
     return <AppLayout><p className="p-4">Orden no encontrada.</p></AppLayout>;
   }
   
-  // Security check
   if (user && companyId && order.companyId !== companyId) {
      return <AppLayout><p className="p-4">No tienes permiso para ver esta orden.</p></AppLayout>;
   }
@@ -125,7 +151,7 @@ export default function OrderDetailPage() {
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Orden #{order.orderNumber}</h1>
           <div className="flex items-center space-x-2">
-            <Select onValueChange={(value) => handleStatusChange(value as OrderStatus)} value={order.status} disabled={isUpdating}>
+            <Select onValueChange={(value) => handleStatusChange(value as OrderStatus)} value={order.status} disabled={isUpdatingStatus}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Cambiar estado" />
               </SelectTrigger>
@@ -135,11 +161,11 @@ export default function OrderDetailPage() {
                 ))}
               </SelectContent>
             </Select>
-            {isUpdating && <Loader2 className="animate-spin" />}
+            {(isUpdatingStatus || isPickingActionPending) && <Loader2 className="animate-spin" />}
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader><CardTitle>Estado Actual</CardTitle></CardHeader>
             <CardContent><Badge variant={order.status === 'cancelled' ? 'destructive' : 'default'}>{order.status}</Badge></CardContent>
@@ -152,17 +178,54 @@ export default function OrderDetailPage() {
             <CardHeader><CardTitle>Prioridad</CardTitle></CardHeader>
             <CardContent>{order.priority}</CardContent>
           </Card>
+           <Card>
+            <CardHeader><CardTitle>Almacén</CardTitle></CardHeader>
+            <CardContent>{order.warehouseId}</CardContent>
+          </Card>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Línea de Tiempo</CardTitle>
-            <CardDescription>Historial de eventos para esta orden.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <OrderTimeline order={order} />
-          </CardContent>
-        </Card>
+        
+        <div className="grid gap-4 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Ítems de la Orden</CardTitle>
+              <div className="flex items-center space-x-2 pt-2">
+                <Button onClick={() => handlePickingAction('reserve')} disabled={isPickingActionPending}>
+                  Reservar Stock
+                </Button>
+                 <Button onClick={() => handlePickingAction('confirm')} disabled={isPickingActionPending}>
+                  Confirmar Picking
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>SKU</TableHead>
+                    <TableHead className="text-right">Cantidad</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {order.items.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell className="font-medium">{item.sku}</TableCell>
+                      <TableCell className="text-right">{item.qty}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Línea de Tiempo</CardTitle>
+              <CardDescription>Historial de eventos para esta orden.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <OrderTimeline order={order} />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </AppLayout>
   );

@@ -1,4 +1,3 @@
-
 import { db } from '@/lib/firebase-client';
 import {
   doc,
@@ -23,6 +22,7 @@ type CreateOrderData = {
   orderNumber: string;
   promiseAt: Date;
   priority: OrderPriority;
+  items: { sku: string; qty: number }[];
 };
 
 /**
@@ -42,6 +42,10 @@ export async function createOrder(
   const existingOrderSnap = await getDocs(q);
   if (!existingOrderSnap.empty) {
     throw new Error(`Ya existe una orden con el número "${data.orderNumber}" en esta compañía.`);
+  }
+
+  if (!data.items || data.items.length === 0) {
+    throw new Error('La orden debe contener al menos un ítem.');
   }
 
   const batch = writeBatch(db);

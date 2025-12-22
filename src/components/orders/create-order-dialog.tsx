@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, useFieldArray } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
@@ -12,18 +12,23 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { createOrder } from '@/lib/orders/ordersService';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon, PlusCircle, XCircle } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ORDER_PRIORITIES, type OrderPriority } from '@/lib/types';
+import { Separator } from '../ui/separator';
 
 interface CreateOrderDialogProps {
   isOpen: boolean;
   onOpenChange: (isOpen: boolean) => void;
 }
+
+const itemSchema = z.object({
+  sku: z.string().min(1, 'SKU es requerido.'),
+  qty: z.coerce.number().int().positive('Cantidad debe ser positiva.'),
+});
 
 const formSchema = z.object({
   orderNumber: z.string().min(1, 'El número de orden es requerido.'),
@@ -37,6 +42,7 @@ const formSchema = z.object({
   promiseAt: z.date({
     required_error: "La fecha promesa es requerida.",
   }),
+  items: z.array(itemSchema).min(1, 'La orden debe tener al menos un ítem.'),
 });
 
 export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogProps) {
@@ -47,11 +53,14 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      orderNumber: '',
-      clientId: '',
-      warehouseId: '',
       priority: 'scheduled',
+      items: [],
     },
+  });
+
+  const { fields, append, remove } = useFieldArray({
+    control: form.control,
+    name: "items",
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
@@ -89,13 +98,13 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Crear Nueva Orden</DialogTitle>
           <DialogDescription>Completa los detalles para crear una nueva orden.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-2">
             <FormField
               control={form.control}
               name="orderNumber"
@@ -197,7 +206,59 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
               )}
             />
 
-            <DialogFooter>
+            <Separator />
+            
+            <div>
+              <h3 className="text-lg font-medium">Ítems</h3>
+              {fields.map((field, index) => (
+                <div key={field.id} className="flex items-end gap-2 my-2">
+                  <FormField
+                    control={form.control}
+                    name={`items.${index}.sku`}
+                    render={({ field }) => (
+                      <FormItem className="flex-1">
+                        <FormLabel>SKU</FormLabel>
+                        <FormControl>
+                          <Input placeholder="SKU-001" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name={`items.${index}.qty`}
+                    render={({ field }) => (
+                      <FormItem className="w-24">
+                        <FormLabel>Cantidad</FormLabel>
+                        <FormControl>
+                          <Input type="number" placeholder="1" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
+                    <XCircle />
+                  </Button>
+                </div>
+              ))}
+               <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-2"
+                onClick={() => append({ sku: '', qty: 1 })}
+              >
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Agregar Ítem
+              </Button>
+               {form.formState.errors.items && (
+                 <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.message}</p>
+               )}
+            </div>
+
+            <DialogFooter className="pt-4">
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={isLoading}>
                 Cancelar
               </Button>

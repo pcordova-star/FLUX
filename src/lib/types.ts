@@ -65,6 +65,7 @@ export interface Order {
   promiseAt: Timestamp | null;
   status: OrderStatus;
   priority: OrderPriority;
+  items: { sku: string; qty: number }[];
   createdAt: Timestamp | null;
   createdBy: string; // user uid
 }
@@ -86,11 +87,13 @@ export interface InventoryBalance {
   clientId: string;
   sku: string;
   qty: number;
+  reservedQty: number;
   updatedAt: Timestamp | null;
   updatedBy: string;
 }
 
-export type InventoryLedgerType = 'inbound';
+export const INVENTORY_LEDGER_TYPES = ['inbound', 'reserve', 'pick'] as const;
+export type InventoryLedgerType = typeof INVENTORY_LEDGER_TYPES[number];
 
 export interface InventoryLedger {
   id: string;
@@ -99,8 +102,10 @@ export interface InventoryLedger {
   clientId: string;
   sku: string;
   deltaQty: number;
+  reservedDeltaQty?: number;
   type: InventoryLedgerType;
-  refType: 'manual' | 'po';
+  refType: 'manual' | 'po' | 'order';
+  relatedOrderId?: string;
   note?: string;
   createdAt: Timestamp | null;
   createdBy: string;
