@@ -44,7 +44,7 @@ function OrderTimeline({ order }: { order: Order }) {
 
   return (
     <div className="space-y-6">
-      {events.map((event) => {
+      {events.map((event, idx) => {
         const Icon = statusIcons[event.type] || Package;
         return (
           <div key={event.id} className="flex gap-4">
@@ -52,7 +52,7 @@ function OrderTimeline({ order }: { order: Order }) {
               <span className="flex h-8 w-8 items-center justify-center rounded-full bg-muted">
                 <Icon className="h-4 w-4 text-muted-foreground" />
               </span>
-              { events.length > 1 && event.id !== events[events.length - 1].id && <div className="h-full w-px bg-border my-1"></div> }
+              { idx < events.length - 1 && <div className="h-full w-px bg-border my-1"></div> }
             </div>
             <div>
               <p className="font-medium">{event.message}</p>
