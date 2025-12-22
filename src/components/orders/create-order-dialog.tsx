@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { createOrder } from '@/lib/orders/ordersService';
-import { Loader2, CalendarIcon, PlusCircle, XCircle } from 'lucide-react';
+import { Loader2, PlusCircle, XCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { format } from 'date-fns';
