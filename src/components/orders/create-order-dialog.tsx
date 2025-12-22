@@ -27,8 +27,12 @@ interface CreateOrderDialogProps {
 
 const formSchema = z.object({
   orderNumber: z.string().min(1, 'El número de orden es requerido.'),
-  clientId: z.string().min(1, 'El cliente es requerido.'),
-  warehouseId: z.string().min(1, 'El almacén es requerido.'),
+  clientId: z.string()
+    .min(3, 'El ID de cliente debe tener al menos 3 caracteres.')
+    .regex(/^\S*$/, 'El ID de cliente no puede contener espacios.'),
+  warehouseId: z.string()
+    .min(3, 'El ID de almacén debe tener al menos 3 caracteres.')
+    .regex(/^\S*$/, 'El ID de almacén no puede contener espacios.'),
   priority: z.enum(ORDER_PRIORITIES),
   promiseAt: z.date({
     required_error: "La fecha promesa es requerida.",
@@ -44,15 +48,19 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
     resolver: zodResolver(formSchema),
     defaultValues: {
       orderNumber: '',
-      clientId: 'dummy-client-id', // Placeholder
-      warehouseId: 'dummy-warehouse-id', // Placeholder
+      clientId: '',
+      warehouseId: '',
       priority: 'scheduled',
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user || !companyId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'Debes iniciar sesión.' });
+    if (!user || !user.uid || !companyId) {
+      toast({
+        variant: 'destructive',
+        title: 'Error de autenticación',
+        description: 'No se pudo verificar la información del usuario o la compañía. Por favor, inicia sesión de nuevo.',
+      });
       return;
     }
     setIsLoading(true);
@@ -101,14 +109,15 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
                 </FormItem>
               )}
             />
-            {/* TODO: Replace with actual client and warehouse selectors */}
             <FormField
               control={form.control}
               name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cliente</FormLabel>
-                   <Input {...field} disabled />
+                  <FormLabel>ID de Cliente</FormLabel>
+                   <FormControl>
+                    <Input placeholder="client_klog_001" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -118,8 +127,10 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
               name="warehouseId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Almacén</FormLabel>
-                   <Input {...field} disabled />
+                  <FormLabel>ID de Almacén</FormLabel>
+                   <FormControl>
+                    <Input placeholder="wh_scl_01" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
