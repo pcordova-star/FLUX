@@ -86,12 +86,11 @@ export interface InventoryBalance {
   clientId: string;
   sku: string;
   qty: number;
-  updatedAt: FieldValue;
+  updatedAt: Timestamp | null;
   updatedBy: string;
 }
 
-export type InventoryLedgerType = 'inbound' | 'outbound' | 'adjustment';
-export type InventoryLedgerRefType = 'manual' | 'po' | 'so' | 'cycle_count';
+export type InventoryLedgerType = 'inbound';
 
 export interface InventoryLedger {
   id: string;
@@ -101,9 +100,9 @@ export interface InventoryLedger {
   sku: string;
   deltaQty: number;
   type: InventoryLedgerType;
-  refType: InventoryLedgerRefType;
+  refType: 'manual' | 'po';
   note?: string;
-  createdAt: FieldValue;
+  createdAt: Timestamp | null;
   createdBy: string;
 }
 
