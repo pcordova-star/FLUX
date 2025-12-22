@@ -110,6 +110,7 @@ export default function OrderDetailPage() {
     startPickingActionTransition(async () => {
       const actionFunc = action === 'reserve' ? reserveForOrder : confirmPick;
       const successMessage = action === 'reserve' ? 'Stock reservado correctamente.' : 'Picking confirmado correctamente.';
+      const actionName = action === 'reserve' ? 'reservar' : 'confirmar pick';
       
       try {
         await actionFunc({
@@ -122,7 +123,7 @@ export default function OrderDetailPage() {
       } catch (e: any) {
         toast({
           variant: 'destructive',
-          title: `Error al ${action === 'reserve' ? 'reservar' : 'confirmar pick'}`,
+          title: `Error al ${actionName}`,
           description: e.message,
         });
       }
@@ -144,6 +145,9 @@ export default function OrderDetailPage() {
   if (user && companyId && order.companyId !== companyId) {
      return <AppLayout><p className="p-4">No tienes permiso para ver esta orden.</p></AppLayout>;
   }
+
+  const canReserve = ['created', 'received'].includes(order.status);
+  const canConfirmPick = ['created', 'received', 'picking'].includes(order.status);
 
   return (
     <AppLayout>
@@ -189,31 +193,41 @@ export default function OrderDetailPage() {
             <CardHeader>
               <CardTitle>Ítems de la Orden</CardTitle>
               <div className="flex items-center space-x-2 pt-2">
-                <Button onClick={() => handlePickingAction('reserve')} disabled={isPickingActionPending}>
+                <Button 
+                    onClick={() => handlePickingAction('reserve')} 
+                    disabled={!canReserve || isPickingActionPending}
+                >
                   Reservar Stock
                 </Button>
-                 <Button onClick={() => handlePickingAction('confirm')} disabled={isPickingActionPending}>
+                 <Button 
+                    onClick={() => handlePickingAction('confirm')} 
+                    disabled={!canConfirmPick || isPickingActionPending}
+                 >
                   Confirmar Picking
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>SKU</TableHead>
-                    <TableHead className="text-right">Cantidad</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {order.items.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{item.sku}</TableCell>
-                      <TableCell className="text-right">{item.qty}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                {order.items && order.items.length > 0 ? (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>SKU</TableHead>
+                        <TableHead className="text-right">Cantidad</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {order.items.map((item, index) => (
+                        <TableRow key={index}>
+                          <TableCell className="font-medium">{item.sku}</TableCell>
+                          <TableCell className="text-right">{item.qty}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                ) : (
+                    <p className="text-sm text-muted-foreground">Esta orden no tiene ítems.</p>
+                )}
             </CardContent>
           </Card>
           <Card>
