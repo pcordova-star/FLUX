@@ -26,8 +26,8 @@ interface CreateOrderDialogProps {
 }
 
 const itemSchema = z.object({
-  sku: z.string().min(1, 'SKU es requerido.'),
-  qty: z.coerce.number().int().positive('Cantidad debe ser positiva.'),
+  sku: z.string().trim().min(1, 'SKU es requerido.'),
+  qty: z.coerce.number().int().positive('Cantidad debe ser un número entero positivo.'),
 });
 
 const formSchema = z.object({
@@ -53,8 +53,11 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      orderNumber: '',
+      clientId: '',
+      warehouseId: '',
       priority: 'scheduled',
-      items: [],
+      items: [{ sku: '', qty: 1 }],
     },
   });
 
@@ -84,7 +87,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
         description: 'La orden ha sido creada correctamente.',
       });
       form.reset();
-      onOpenChange(false);
+       onOpenChange(false);
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -95,6 +98,20 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
       setIsLoading(false);
     }
   }
+  
+  // Reset form when dialog closes
+  React.useEffect(() => {
+    if (!isOpen) {
+      form.reset({
+        orderNumber: '',
+        clientId: '',
+        warehouseId: '',
+        priority: 'scheduled',
+        promiseAt: undefined,
+        items: [{ sku: '', qty: 1 }],
+      });
+    }
+  }, [isOpen, form]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -209,40 +226,50 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
             <Separator />
             
             <div>
-              <h3 className="text-lg font-medium">Ítems</h3>
-              {fields.map((field, index) => (
-                <div key={field.id} className="flex items-end gap-2 my-2">
-                  <FormField
-                    control={form.control}
-                    name={`items.${index}.sku`}
-                    render={({ field }) => (
-                      <FormItem className="flex-1">
-                        <FormLabel>SKU</FormLabel>
-                        <FormControl>
-                          <Input placeholder="SKU-001" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                   <FormField
-                    control={form.control}
-                    name={`items.${index}.qty`}
-                    render={({ field }) => (
-                      <FormItem className="w-24">
-                        <FormLabel>Cantidad</FormLabel>
-                        <FormControl>
-                          <Input type="number" placeholder="1" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <Button type="button" variant="destructive" size="icon" onClick={() => remove(index)}>
-                    <XCircle />
-                  </Button>
-                </div>
-              ))}
+              <h3 className="text-lg font-medium mb-2">Ítems</h3>
+              <div className="space-y-4">
+                {fields.map((field, index) => (
+                  <div key={field.id} className="flex items-start gap-2">
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.sku`}
+                      render={({ field }) => (
+                        <FormItem className="flex-1">
+                          <FormLabel className={cn(index !== 0 && "sr-only")}>SKU</FormLabel>
+                          <FormControl>
+                            <Input placeholder="SKU-001" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={form.control}
+                      name={`items.${index}.qty`}
+                      render={({ field }) => (
+                        <FormItem className="w-28">
+                          <FormLabel className={cn(index !== 0 && "sr-only")}>Cantidad</FormLabel>
+                          <FormControl>
+                            <Input type="number" placeholder="1" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      onClick={() => remove(index)}
+                      className="mt-8"
+                      disabled={fields.length <= 1}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      <span className="sr-only">Eliminar ítem</span>
+                    </Button>
+                  </div>
+                ))}
+              </div>
                <Button
                 type="button"
                 variant="outline"
@@ -253,7 +280,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
                 <PlusCircle className="mr-2 h-4 w-4" />
                 Agregar Ítem
               </Button>
-               {form.formState.errors.items && (
+               {form.formState.errors.items && !form.formState.errors.items.root && (
                  <p className="text-sm font-medium text-destructive mt-2">{form.formState.errors.items.message}</p>
                )}
             </div>
