@@ -109,7 +109,8 @@ service cloud.firestore {
       match /events/{eventId} {
         allow read: if isSameCompanyAsUser(get(/databases/$(database)/documents/orders/$(orderId)).data.companyId) || isClientViewerForClient(get(/databases/$(database)/documents/orders/$(orderId)).data.clientId);
         allow create: if isSameCompanyAsUser(request.resource.data.companyId) &&
-                         (isAdmin(request.auth.uid) || isWarehouseOperatorForWarehouse(get(/databases/$(database)/documents/orders/$(orderId)).data.warehouseId));
+                         (isAdmin(request.auth.uid) || isWarehouseOperatorForWarehouse(get(/databases/$(database)/documents/orders/$(orderId)).data.warehouseId)) &&
+                         request.resource.data.companyId == get(/databases/$(database)/documents/orders/$(orderId)).data.companyId;
         allow update, delete: if false;
       }
     }
