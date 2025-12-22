@@ -3,9 +3,9 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, onIdTokenChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase-client';
 import type { AppUser, UserRole } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
+import { useFirebase } from './firebase-provider';
 
 export interface AuthContextType {
   user: User | null;
@@ -34,22 +34,26 @@ const AuthContext = createContext<AuthContextType>({
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
+  const { auth, firestore } = useFirebase();
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   const handleLogout = useCallback(async () => {
+    if (!auth) return;
     await signOut(auth);
     setUser(null);
     setAppUser(null);
     setLoading(false);
-  }, []);
+  }, [auth]);
   
   useEffect(() => {
+    if (!auth || !firestore) return;
+
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setLoading(true);
-        const userDocRef = doc(db, 'users', firebaseUser.uid);
+        const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
@@ -73,9 +77,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     });
 
     return () => unsubscribe();
-  }, [handleLogout]);
+  }, [auth, firestore, handleLogout]);
 
   const login = async (email: string, pass: string) => {
+    if (!auth) return;
     await signInWithEmailAndPassword(auth, email, pass);
     // onIdTokenChanged will handle the rest
   };

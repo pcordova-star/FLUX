@@ -1,4 +1,3 @@
-import { db } from '@/lib/firebase-client';
 import {
   doc,
   addDoc,
@@ -10,7 +9,8 @@ import {
   where,
   getDocs,
   writeBatch,
-  Timestamp
+  Timestamp,
+  type Firestore,
 } from 'firebase/firestore';
 import type { Order, OrderStatus, OrderEvent, OrderPriority } from '@/lib/types';
 
@@ -30,6 +30,7 @@ type CreateOrderData = {
  * Validates for uniqueness of orderNumber within the same company.
  */
 export async function createOrder(
+  db: Firestore,
   data: CreateOrderData,
   userId: string
 ): Promise<string> {
@@ -82,6 +83,7 @@ export async function createOrder(
  * Lists all orders for a given company, with optional filters.
  */
 export async function listOrders(
+  db: Firestore,
   companyId: string,
   filters?: { status?: OrderStatus }
 ): Promise<Order[]> {
@@ -99,7 +101,7 @@ export async function listOrders(
 /**
  * Gets a single order by its ID.
  */
-export async function getOrder(orderId: string): Promise<Order | null> {
+export async function getOrder(db: Firestore, orderId: string): Promise<Order | null> {
   const orderRef = doc(db, 'orders', orderId);
   const orderSnap = await getDoc(orderRef);
   
@@ -117,6 +119,7 @@ type AddOrderEventData = Omit<OrderEvent, 'id' | 'createdAt' | 'companyId'>;
  * It fetches the order to ensure the companyId is correctly sourced.
  */
 export async function addOrderEvent(
+  db: Firestore,
   orderId: string,
   eventData: AddOrderEventData
 ): Promise<void> {
@@ -140,6 +143,7 @@ export async function addOrderEvent(
  * Updates the status of an order and adds a corresponding event.
  */
 export async function updateOrderStatus(
+  db: Firestore,
   orderId: string,
   status: OrderStatus,
   userId: string

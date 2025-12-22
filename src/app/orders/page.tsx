@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import { db } from '@/lib/firebase-client';
+import { useFirebase } from '@/context/firebase-provider';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -19,11 +19,12 @@ import PageSpinner from '@/components/page-spinner';
 
 export default function OrdersPage() {
   const { companyId, loading: authLoading } = useAuth();
+  const { firestore } = useFirebase();
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
 
   const [ordersSnapshot, loading, error] = useCollection(
-    companyId ? query(
-      collection(db, 'orders'),
+    companyId && firestore ? query(
+      collection(firestore, 'orders'),
       where('companyId', '==', companyId),
       orderBy('createdAt', 'desc')
     ) : null

@@ -1,12 +1,12 @@
 'use client';
 
-import { db } from '@/lib/firebase-client';
 import {
   doc,
   collection,
   serverTimestamp,
   runTransaction,
   increment,
+  type Firestore,
 } from 'firebase/firestore';
 import type { Order, OrderEvent } from '@/lib/types';
 
@@ -38,7 +38,7 @@ function sanitizeDocId(id: string): string {
  * 4. Create an 'reserve' ledger entry for each item.
  * 5. Create an order event to log the reservation.
  */
-export async function reserveForOrder(input: PickingOperationInput, userId: string): Promise<void> {
+export async function reserveForOrder(db: Firestore, input: PickingOperationInput, userId: string): Promise<void> {
   const { companyId, warehouseId, clientId, orderId } = input;
   const orderRef = doc(db, 'orders', orderId);
 
@@ -129,7 +129,7 @@ export async function reserveForOrder(input: PickingOperationInput, userId: stri
  * 4. Update the order status to 'picking'.
  * 5. Create an order event to log the pick confirmation.
  */
-export async function confirmPick(input: PickingOperationInput, userId: string): Promise<void> {
+export async function confirmPick(db: Firestore, input: PickingOperationInput, userId: string): Promise<void> {
   const { companyId, warehouseId, clientId, orderId } = input;
   const orderRef = doc(db, 'orders', orderId);
 

@@ -1,10 +1,10 @@
-import { db } from '@/lib/firebase-client';
 import {
   doc,
   collection,
   serverTimestamp,
   runTransaction,
   increment,
+  type Firestore,
 } from 'firebase/firestore';
 
 interface ReceiveStockInput {
@@ -29,7 +29,7 @@ function sanitizeDocId(id: string): string {
  * 1. Upserts the inventory balance for a given SKU.
  * 2. Creates a ledger entry to record the movement.
  */
-export async function receiveStock(input: ReceiveStockInput, userId: string): Promise<void> {
+export async function receiveStock(db: Firestore, input: ReceiveStockInput, userId: string): Promise<void> {
   const { companyId, warehouseId, clientId, sku, qty, note } = input;
 
   if (qty <= 0) {

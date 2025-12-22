@@ -9,6 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
+import { useFirebase } from '@/context/firebase-provider';
 import { useToast } from '@/hooks/use-toast';
 import { receiveStock } from '@/lib/inventory/inventoryService';
 import { Loader2 } from 'lucide-react';
@@ -30,6 +31,7 @@ const formSchema = z.object({
 
 export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogProps) {
   const { user, companyId } = useAuth();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,7 +46,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user || !user.uid || !companyId) {
+    if (!user || !user.uid || !companyId || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Error de autenticación',
@@ -54,7 +56,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
     }
     setIsLoading(true);
     try {
-      await receiveStock({
+      await receiveStock(firestore, {
         ...values,
         companyId,
       }, user.uid);

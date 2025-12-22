@@ -6,6 +6,7 @@ import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/context/auth-context';
+import { useFirebase } from '@/context/firebase-provider';
 import { updateOrderStatus } from '@/lib/orders/ordersService';
 import { reserveForOrder, confirmPick } from '@/lib/picking/pickingService';
 import type { Order, OrderEvent, OrderStatus } from '@/lib/types';
@@ -14,7 +15,6 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { useCollection, useDocument } from 'react-firebase-hooks/firestore';
 import { doc, collection, query, orderBy } from 'firebase/firestore';
-import { db } from '@/lib/firebase-client';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ORDER_STATUSES } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -35,8 +35,9 @@ const statusIcons: Record<string, any> = {
 };
 
 function OrderTimeline({ order }: { order: Order }) {
+  const { firestore } = useFirebase();
   const [eventsSnapshot, loading, error] = useCollection(
-    query(collection(db, 'orders', order.id, 'events'), orderBy('createdAt', 'desc'))
+    firestore ? query(collection(firestore, 'orders', order.id, 'events'), orderBy('createdAt', 'desc')) : null
   );
 
   if (loading) return <div className="flex justify-center p-4"><Loader2 className="animate-spin" /></div>;
@@ -77,6 +78,7 @@ export default function OrderDetailPage() {
   const orderId = params.orderId as string;
 
   const { user, companyId, loading: authLoading } = useAuth();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
 
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
@@ -84,7 +86,7 @@ export default function OrderDetailPage() {
   const [isConfirming, startConfirmTransition] = useTransition();
 
   const [orderSnapshot, loading, error] = useDocument(
-    orderId ? doc(db, 'orders', orderId) : null
+    orderId && firestore ? doc(firestore, 'orders', orderId) : null
   );
 
   const order = orderSnapshot?.exists()
@@ -92,11 +94,11 @@ export default function OrderDetailPage() {
     : null;
 
   const handleStatusChange = async (newStatus: OrderStatus) => {
-    if (!order || !user) return;
+    if (!order || !user || !firestore) return;
 
     setIsUpdatingStatus(true);
     try {
-      await updateOrderStatus(order.id, newStatus, user.uid);
+      await updateOrderStatus(firestore, order.id, newStatus, user.uid);
       toast({
         title: 'Éxito',
         description: `El estado de la orden ha sido actualizado a "${newStatus}".`,
@@ -113,11 +115,12 @@ export default function OrderDetailPage() {
   };
 
   const handleReserveStock = () => {
-    if (!order || !user || !companyId) return;
+    if (!order || !user || !companyId || !firestore) return;
 
     startReserveTransition(async () => {
       try {
         await reserveForOrder(
+          firestore,
           {
             orderId: order.id,
             companyId,
@@ -138,11 +141,12 @@ export default function OrderDetailPage() {
   };
 
   const handleConfirmPick = () => {
-    if (!order || !user || !companyId) return;
+    if (!order || !user || !companyId || !firestore) return;
 
     startConfirmTransition(async () => {
       try {
         await confirmPick(
+          firestore,
           {
             orderId: order.id,
             companyId,

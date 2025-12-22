@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
+import { useFirebase } from '@/context/firebase-provider';
 import { useToast } from '@/hooks/use-toast';
 import { createOrder } from '@/lib/orders/ordersService';
 import { Loader2, PlusCircle, XCircle, Calendar as CalendarIcon } from 'lucide-react';
@@ -47,6 +48,7 @@ const formSchema = z.object({
 
 export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogProps) {
   const { user, companyId } = useAuth();
+  const { firestore } = useFirebase();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,7 +69,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!user || !user.uid || !companyId) {
+    if (!user || !user.uid || !companyId || !firestore) {
       toast({
         variant: 'destructive',
         title: 'Error de autenticación',
@@ -77,7 +79,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
     }
     setIsLoading(true);
     try {
-      await createOrder({
+      await createOrder(firestore, {
         ...values,
         companyId,
       }, user.uid);
