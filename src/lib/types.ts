@@ -1,4 +1,3 @@
-
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type UserRole = 
@@ -51,6 +50,7 @@ export interface Location {
 
 export type OrderStatus = 'created' | 'received' | 'picking' | 'packed' | 'shipped' | 'delivered' | 'cancelled';
 export const ORDER_STATUSES: OrderStatus[] = ['created', 'received', 'picking', 'packed', 'shipped', 'delivered', 'cancelled'];
+
 export type OrderPriority = 'express' | 'same_day' | 'next_day' | 'scheduled';
 export const ORDER_PRIORITIES: OrderPriority[] = ['express', 'same_day', 'next_day', 'scheduled'];
 
@@ -61,10 +61,10 @@ export interface Order {
   clientId: string;
   warehouseId: string;
   orderNumber: string;
-  promiseAt: Timestamp;
+  promiseAt: Timestamp | null;
   status: OrderStatus;
   priority: OrderPriority;
-  createdAt: Timestamp | FieldValue;
+  createdAt: Timestamp | null;
   createdBy: string; // user uid
 }
 
@@ -73,7 +73,7 @@ export type OrderEvent = {
   companyId: string;
   type: OrderStatus | 'info' | 'error';
   message: string;
-  createdAt: Timestamp | FieldValue;
+  createdAt: Timestamp | null;
   createdBy: string; // user uid
 }
 
