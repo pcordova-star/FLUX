@@ -1,3 +1,4 @@
+
 import { db } from '@/lib/firebase-client';
 import {
   doc,
@@ -9,7 +10,8 @@ import {
   query,
   where,
   getDocs,
-  writeBatch
+  writeBatch,
+  Timestamp
 } from 'firebase/firestore';
 import type { Order, OrderStatus, OrderEvent, OrderPriority } from '@/lib/types';
 
@@ -25,19 +27,32 @@ type CreateOrderData = {
 
 /**
  * Creates a new order and an initial 'created' event.
+ * Validates for uniqueness of orderNumber within the same company.
  */
 export async function createOrder(
   data: CreateOrderData,
   userId: string
 ): Promise<string> {
+  // Validate for uniqueness of orderNumber within the company
+  const q = query(
+    collection(db, 'orders'),
+    where('companyId', '==', data.companyId),
+    where('orderNumber', '==', data.orderNumber)
+  );
+  const existingOrderSnap = await getDocs(q);
+  if (!existingOrderSnap.empty) {
+    throw new Error(`Ya existe una orden con el número "${data.orderNumber}" en esta compañía.`);
+  }
+
   const batch = writeBatch(db);
   
   // 1. Create the order document
   const orderRef = doc(collection(db, 'orders'));
   const newOrder: Omit<Order, 'id'> = {
     ...data,
+    promiseAt: Timestamp.fromDate(data.promiseAt),
     status: 'created',
-    createdAt: serverTimestamp() as any, // Firestore will replace this
+    createdAt: serverTimestamp(),
     createdBy: userId,
   };
   batch.set(orderRef, newOrder);
@@ -48,7 +63,7 @@ export async function createOrder(
     companyId: data.companyId,
     type: 'created',
     message: 'La orden ha sido creada.',
-    createdAt: serverTimestamp() as any,
+    createdAt: serverTimestamp(),
     createdBy: userId,
   };
   batch.set(eventRef, initialEvent);
@@ -91,16 +106,25 @@ export async function getOrder(orderId: string): Promise<Order | null> {
   return { id: orderSnap.id, ...orderSnap.data() } as Order;
 }
 
+
+type AddOrderEventData = Omit<OrderEvent, 'id' | 'createdAt' | 'companyId'>;
 /**
  * Adds a new event to an order's timeline.
+ * It fetches the order to ensure the companyId is correctly sourced.
  */
 export async function addOrderEvent(
   orderId: string,
-  event: Omit<OrderEvent, 'id' | 'createdAt'>
+  eventData: AddOrderEventData
 ): Promise<void> {
+  const order = await getOrder(orderId);
+  if (!order) {
+    throw new Error("Order not found, cannot add event.");
+  }
+
   const eventsCollection = collection(db, 'orders', orderId, 'events');
   await addDoc(eventsCollection, {
-    ...event,
+    ...eventData,
+    companyId: order.companyId, // Source companyId from the parent order
     createdAt: serverTimestamp(),
   });
 }
@@ -114,11 +138,12 @@ export async function updateOrderStatus(
   userId: string
 ): Promise<void> {
   const orderRef = doc(db, 'orders', orderId);
-  const order = await getOrder(orderId);
+  const orderSnap = await getDoc(orderRef);
 
-  if (!order) {
+  if (!orderSnap.exists()) {
     throw new Error("Order not found");
   }
+  const orderData = orderSnap.data();
 
   const batch = writeBatch(db);
 
@@ -128,10 +153,10 @@ export async function updateOrderStatus(
   // 2. Add an order event
   const eventRef = doc(collection(db, 'orders', orderId, 'events'));
   const newEvent: Omit<OrderEvent, 'id'> = {
-    companyId: order.companyId,
+    companyId: orderData.companyId, // Use companyId from the fetched order
     type: status,
     message: `El estado de la orden cambió a: ${status}`,
-    createdAt: serverTimestamp() as any,
+    createdAt: serverTimestamp(),
     createdBy: userId,
   };
   batch.set(eventRef, newEvent);

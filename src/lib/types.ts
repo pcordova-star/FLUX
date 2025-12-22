@@ -1,4 +1,5 @@
-import type { Timestamp } from 'firebase/firestore';
+
+import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export type UserRole = 
   | 'super_admin'
@@ -63,7 +64,7 @@ export interface Order {
   promiseAt: Timestamp;
   status: OrderStatus;
   priority: OrderPriority;
-  createdAt: Timestamp;
+  createdAt: Timestamp | FieldValue;
   createdBy: string; // user uid
 }
 
@@ -72,7 +73,7 @@ export type OrderEvent = {
   companyId: string;
   type: OrderStatus | 'info' | 'error';
   message: string;
-  createdAt: Timestamp;
+  createdAt: Timestamp | FieldValue;
   createdBy: string; // user uid
 }
 
