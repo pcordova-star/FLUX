@@ -79,6 +79,35 @@ export type OrderEvent = {
 }
 
 
+export interface InventoryBalance {
+  id: string;
+  companyId: string;
+  warehouseId: string;
+  clientId: string;
+  sku: string;
+  qty: number;
+  updatedAt: FieldValue;
+  updatedBy: string;
+}
+
+export type InventoryLedgerType = 'inbound' | 'outbound' | 'adjustment';
+export type InventoryLedgerRefType = 'manual' | 'po' | 'so' | 'cycle_count';
+
+export interface InventoryLedger {
+  id: string;
+  companyId: string;
+  warehouseId: string;
+  clientId: string;
+  sku: string;
+  deltaQty: number;
+  type: InventoryLedgerType;
+  refType: InventoryLedgerRefType;
+  note?: string;
+  createdAt: FieldValue;
+  createdBy: string;
+}
+
+
 // Below are other types from the original app, kept for reference
 export interface UserProfile {
   uid: string;
@@ -111,27 +140,6 @@ export interface Product {
   description: string;
   price: number;
   createdAt: Timestamp;
-}
-
-export interface InventoryBalance {
-  id: string; // Combination of productId and locationId
-  productId: string;
-  locationId: string;
-  quantity: number;
-  lastUpdated: Timestamp;
-}
-
-export type InventoryLedgerType = 'inbound' | 'outbound' | 'adjustment';
-
-export interface InventoryLedger {
-  id: string;
-  productId: string;
-  locationId: string;
-  type: InventoryLedgerType;
-  quantityChange: number;
-  relatedOrderId?: string;
-  timestamp: Timestamp;
-  userId: string;
 }
 
 export interface Evidence {
