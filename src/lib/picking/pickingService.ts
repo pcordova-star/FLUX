@@ -1,3 +1,5 @@
+'use client';
+
 import { db } from '@/lib/firebase-client';
 import {
   doc,
@@ -17,11 +19,16 @@ interface PickingOperationInput {
 
 /**
  * Sanitizes a string to be used as a Firestore document ID.
- * Replaces invalid characters (including whitespace and slashes) with underscores.
+ * Trims, lowercases, and replaces spaces and common URL/path characters with underscores.
  */
 function sanitizeDocId(id: string): string {
-    return id.replace(/[.*~/[\]\s?#%]/g, '_');
+    return id
+        .trim()
+        .toLowerCase()
+        .replace(/\s+/g, '_') // Replace one or more spaces with a single underscore
+        .replace(/[\/?#%\[\]&=+:@!$'()*;,.~]/g, '_'); // Replace common special characters with an underscore
 }
+
 
 /**
  * Reserves stock for a given order. This transaction will:
@@ -53,7 +60,7 @@ export async function reserveForOrder(input: PickingOperationInput, userId: stri
 
       // Check availability and prepare updates
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const balanceDoc = await transaction.get(balanceRef);
 
@@ -72,7 +79,7 @@ export async function reserveForOrder(input: PickingOperationInput, userId: stri
 
       // If all checks pass, perform the updates
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const ledgerRef = doc(collection(db, 'inventory_ledger'));
 
@@ -145,7 +152,7 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
 
       // Check if there is enough reservation and stock
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const balanceDoc = await transaction.get(balanceRef);
         
@@ -167,7 +174,7 @@ export async function confirmPick(input: PickingOperationInput, userId: string):
 
       // If all checks pass, perform updates
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const ledgerRef = doc(collection(db, 'inventory_ledger'));
 
