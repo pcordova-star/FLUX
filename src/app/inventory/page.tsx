@@ -81,7 +81,7 @@ export default function InventoryPage() {
                       <TableCell>{balance.clientId}</TableCell>
                       <TableCell className="text-right">{balance.qty}</TableCell>
                       <TableCell>
-                        {balance.updatedAt ? format((balance.updatedAt as any).toDate(), 'dd/MM/yyyy HH:mm') : 'N/A'}
+                        {balance.updatedAt ? format(balance.updatedAt.toDate(), 'dd/MM/yyyy HH:mm') : 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))}
