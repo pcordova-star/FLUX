@@ -88,18 +88,22 @@ service cloud.firestore {
     }
 
     // Admins/Super Admins, or a client viewer for the specific client can read orders.
-    // Admins/Super Admins or an assigned warehouse operator can write to orders,
-    // with immutability constraints on companyId and clientId.
+    // Create/update/delete permissions are more granular.
     match /orders/{orderId} {
       allow read: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(resource.data.clientId);
-      allow write: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
-                      (
-                        isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && 
-                        isSameCompanyAsUser(request.resource.data.companyId) &&
-                        // Ensure critical fields are not changed on update
-                        request.resource.data.companyId == resource.data.companyId &&
-                        request.resource.data.clientId == resource.data.clientId
-                      );
+      allow create: if 
+        (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
+        (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
+      allow update: if
+        (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
+        (
+          isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) &&
+          isSameCompanyAsUser(request.resource.data.companyId) &&
+          // Ensure critical fields are not changed on update
+          request.resource.data.companyId == resource.data.companyId &&
+          request.resource.data.clientId == resource.data.clientId
+        );
+      allow delete: if false; // Enforce soft deletes
     }
     
     // Admins or assigned warehouse operators can read/write inventory balances.
