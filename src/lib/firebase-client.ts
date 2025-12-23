@@ -1,18 +1,23 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { getFirestore, type Firestore, enableIndexedDbPersistence } from "firebase/firestore";
+import { enableIndexedDbPersistence, getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type Storage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBs21YoH_3Fi-u3Bt8MJClq09gEdQLBW9o",
-  authDomain: "studio-7575474202-582d8.firebaseapp.com",
-  projectId: "studio-7575474202-582d8",
-  storageBucket: "studio-7575474202-582d8.appspot.com",
-  messagingSenderId: "1057800767082",
-  appId: "1:1057800767082:web:4ded3e72275631c6516c13"
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
+
+// Log to confirm config is being read correctly
+if (typeof window !== 'undefined') {
+  console.log("FB", firebaseConfig.projectId, firebaseConfig.authDomain, firebaseConfig.appId?.slice(0,10));
+}
 
 // Initialize Firebase for SSR and SSG
 let app: FirebaseApp;
@@ -30,15 +35,17 @@ firestore = getFirestore(app);
 auth = getAuth(app);
 storage = getStorage(app);
 
-// Enable persistence
-try {
-  enableIndexedDbPersistence(firestore);
-} catch (error: any) {
-  if (error.code === 'failed-precondition') {
-    // Multiple tabs open, persistence can only be enabled in one.
-  } else if (error.code === 'unimplemented') {
-    // The current browser does not support all of the
-    // features required to enable persistence
+// Enable persistence only on the client-side
+if (typeof window !== 'undefined') {
+  try {
+    enableIndexedDbPersistence(firestore);
+  } catch (error: any) {
+    if (error.code === 'failed-precondition') {
+      // Multiple tabs open, persistence can only be enabled in one.
+    } else if (error.code === 'unimplemented') {
+      // The current browser does not support all of the
+      // features required to enable persistence
+    }
   }
 }
 
