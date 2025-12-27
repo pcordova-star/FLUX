@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleLogout = useCallback(async () => {
     if (!auth) return;
+    console.log('[AuthDiag] Logging out user.');
     await signOut(auth);
     setUser(null);
     setAppUser(null);
@@ -48,39 +49,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [auth]);
   
   useEffect(() => {
-    if (!auth || !firestore) return;
+    if (!auth || !firestore) {
+      console.error('[AuthDiag] Firebase Auth or Firestore not available on mount.');
+      return;
+    };
 
+    console.log('[AuthDiag] Subscribing to onIdTokenChanged.');
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setLoading(true);
+        console.log(`[AuthDiag] Token changed. User ID: ${firebaseUser.uid}. Fetching AppUser...`);
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const fetchedAppUser = userDocSnap.data() as AppUser;
+          console.log(`[AuthDiag] AppUser found:`, { role: fetchedAppUser.role, companyId: fetchedAppUser.companyId, isActive: fetchedAppUser.isActive });
           if (fetchedAppUser.isActive) {
             setUser(firebaseUser);
             setAppUser(fetchedAppUser);
           } else {
-            // User is not active, log them out
+            console.warn(`[AuthDiag] User ${firebaseUser.uid} is inactive. Forcing logout.`);
             await handleLogout();
           }
         } else {
-          // No appUser document found, log them out
+          console.error(`[AuthDiag] AppUser document not found for UID ${firebaseUser.uid}. Forcing logout.`);
           await handleLogout();
         }
       } else {
+        console.log('[AuthDiag] Token changed. User is null.');
         setUser(null);
         setAppUser(null);
       }
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('[AuthDiag] Unsubscribing from onIdTokenChanged.');
+      unsubscribe();
+    };
   }, [auth, firestore, handleLogout]);
 
   const login = async (email: string, pass: string) => {
-    if (!auth) return;
+    if (!auth) {
+      console.error('[AuthDiag] Auth service not available for login.');
+      throw new Error("El servicio de autenticación no está disponible.");
+    };
+    console.log(`[AuthDiag] Attempting login for ${email}`);
     await signInWithEmailAndPassword(auth, email, pass);
     // onIdTokenChanged will handle the rest
   };
