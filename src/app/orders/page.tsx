@@ -16,6 +16,7 @@ import Link from 'next/link';
 import { CreateOrderDialog } from '@/components/orders/create-order-dialog';
 import type { Order } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
+import { can } from '@/lib/permissions';
 
 export default function OrdersPage() {
   const { companyId, loading: authLoading, role } = useAuth();
@@ -39,7 +40,7 @@ export default function OrdersPage() {
     return <PageSpinner />;
   }
 
-  const canCreateOrder = role === 'admin' || role === 'operator';
+  const canCreateOrder = can(role, 'order:create');
   const orders = ordersSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)) || [];
 
   return (
@@ -55,10 +56,12 @@ export default function OrdersPage() {
           )}
         </div>
         
-        <CreateOrderDialog
-          isOpen={isCreateDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-        />
+        {canCreateOrder && (
+          <CreateOrderDialog
+            isOpen={isCreateDialogOpen}
+            onOpenChange={setCreateDialogOpen}
+          />
+        )}
 
         <Card>
           <CardHeader>

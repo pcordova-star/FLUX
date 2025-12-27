@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2, PackageCheck, Package, ShoppingCart, Truck, CheckCircle, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { can } from '@/lib/permissions';
 
 const statusIcons: Record<string, any> = {
   created: ShoppingCart,
@@ -193,9 +194,9 @@ export default function OrderDetailPage() {
     );
   }
 
-  const canPerformActions = role === 'admin' || role === 'operator';
-  const canReserve = canPerformActions && ['created', 'received'].includes(order.status);
-  const canConfirmPicking = canPerformActions && ['created', 'received', 'picking'].includes(order.status);
+  const canPerformActions = can(role, 'order:update:status');
+  const canReserve = ['created', 'received'].includes(order.status);
+  const canConfirmPicking = ['created', 'received', 'picking'].includes(order.status);
 
   const isActionPending = isUpdatingStatus || isReserving || isConfirming;
 

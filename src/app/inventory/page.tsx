@@ -15,6 +15,7 @@ import { format } from 'date-fns';
 import { ReceiveStockDialog } from '@/components/inventory/receive-stock-dialog';
 import type { InventoryBalance } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
+import { can } from '@/lib/permissions';
 
 const StockStatusBadge = ({ qty }: { qty: number }) => {
   const status = qty === 0 
@@ -58,7 +59,7 @@ export default function InventoryPage() {
     return <PageSpinner />;
   }
   
-  const canReceiveStock = role === 'admin' || role === 'operator';
+  const canReceiveStock = can(role, 'inventory:move');
 
   const balances = balancesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryBalance)) || [];
 
@@ -75,10 +76,12 @@ export default function InventoryPage() {
           )}
         </div>
 
-        <ReceiveStockDialog
-          isOpen={isReceiveStockOpen}
-          onOpenChange={setReceiveStockOpen}
-        />
+        {canReceiveStock && (
+          <ReceiveStockDialog
+            isOpen={isReceiveStockOpen}
+            onOpenChange={setReceiveStockOpen}
+          />
+        )}
 
         <Card>
           <CardHeader>
