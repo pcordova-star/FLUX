@@ -1,83 +1,63 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { Package, ShoppingCart, Warehouse } from 'lucide-react';
-import { useFirebase } from '@/context/firebase-provider';
-import { doc, getDoc } from 'firebase/firestore';
+import { Package, ShoppingCart, Warehouse, AlertTriangle, Truck, Repeat } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { useFirebase } from '@/context/firebase-provider';
+
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
   const { user } = useAuth();
-
-  useEffect(() => {
-    const runHealthCheck = async () => {
-      // Run check only if firestore and user are available
-      if (!firestore || !user) return;
-      
-      try {
-        // Ping the user's own document, which should always be readable by them
-        const userDocRef = doc(firestore, "users", user.uid);
-        await getDoc(userDocRef);
-        console.log("%c[FirebaseDiag] Firestore ping successful! (read users/self)", "color: green");
-      } catch (error: any) {
-        console.error("[FirebaseDiag] Raw error:", error);
-        console.error(
-          "%c[FirebaseDiag] Firestore ping failed.", "color: red",
-          {
-            name: error?.name,
-            message: error?.message,
-            code: error?.code,
-            stack: error?.stack,
-            toString: String(error),
-          }
-        );
-         if (error?.customData) {
-            console.error("[FirebaseDiag] Custom Data:", error.customData);
-        }
-      }
-    };
-    runHealthCheck();
-  }, [firestore, user]);
 
 
   return (
     <AppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard Ejecutivo</h1>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pedidos Activos</CardTitle>
+              <CardTitle className="text-sm font-medium">Órdenes en Curso</CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1,234</div>
-              <p className="text-xs text-muted-foreground">+5% desde el mes pasado</p>
+              <div className="text-2xl font-bold">...</div>
+              <p className="text-xs text-muted-foreground">Picking, packed, etc.</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Artículos de Inventario</CardTitle>
-              <Package className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Órdenes Atrasadas</CardTitle>
+              <Truck className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">5,678</div>
-              <p className="text-xs text-muted-foreground">Total de productos únicos</p>
+              <div className="text-2xl font-bold text-destructive">...</div>
+              <p className="text-xs text-muted-foreground">Incumplen fecha promesa</p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Almacenes</CardTitle>
-              <Warehouse className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium">Stock Crítico</CardTitle>
+              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">3</div>
-              <p className="text-xs text-muted-foreground">Ubicaciones en línea</p>
+              <div className="text-2xl font-bold">...</div>
+              <p className="text-xs text-muted-foreground">SKUs con stock cero</p>
+            </CardContent>
+          </Card>
+           <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Rotación (30d)</CardTitle>
+              <Repeat className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">...</div>
+              <p className="text-xs text-muted-foreground">KPI calculado (diario)</p>
             </CardContent>
           </Card>
         </div>
@@ -85,11 +65,11 @@ export default function DashboardPage() {
             <CardHeader>
                 <CardTitle>Bienvenido a FLUX Wems Core</CardTitle>
                 <CardDescription>
-                Este es tu centro de control para gestionar operaciones de almacén, pedidos e inventario.
+                Este es tu centro de control para visualizar las métricas clave de la operación logística.
                 </CardDescription>
             </CardHeader>
             <CardContent>
-                <p>Usa la navegación de la izquierda para acceder a los diferentes módulos del sistema. Puedes ver pedidos, gestionar niveles de stock, configurar productos y más.</p>
+                <p>Usa este dashboard para tomar decisiones rápidas y supervisar la salud de tu almacén. Los datos de las tarjetas superiores se actualizan en tiempo real.</p>
             </CardContent>
         </Card>
       </div>
