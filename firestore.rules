@@ -70,7 +70,7 @@ service cloud.firestore {
       allow get: if isSameCompany(resource.data.companyId);
       allow list: if request.query.companyId == getUserData().companyId;
       // Allow writes only if user is part of the company.
-      // This is secure because transactions run with user credentials.
+      // This is secure because transactions run with user credentials (which are validated to be admin).
       allow write: if isAdmin() && isSameCompany(request.resource.data.companyId);
       allow delete: if false;
     }
@@ -106,7 +106,7 @@ service cloud.firestore {
        // Allow reading events if the parent order belongs to the user's company.
        allow read: if get(/databases/$(database)/documents/orders/$(orderId)).data.companyId == getUserData().companyId;
        // Allow creating events if the event data includes the correct companyId.
-       allow create: if request.resource.data.companyId == getUserData().companyId;
+       allow create: if isAdmin() && request.resource.data.companyId == getUserData().companyId;
        // Prevent modification of historical events.
        allow update, delete: if false;
     }
