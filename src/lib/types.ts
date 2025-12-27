@@ -109,6 +109,15 @@ export interface InventoryLedger {
   createdBy: string; // user uid
 }
 
+export interface KpiSnapshot {
+  ordersToday: number;
+  ordersInProgress: number;
+  ordersDelayed: number;
+  criticalStockItems: number;
+  updatedAt: Timestamp | null;
+}
+
+
 // Below are other types from the original app, kept for reference
 export interface UserProfile {
   uid: string;

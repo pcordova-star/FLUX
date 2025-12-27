@@ -129,10 +129,12 @@ export async function reserveForOrder(db: Firestore, input: PickingOperationInpu
  * 3. Create a 'pick' ledger entry for each item.
  * 4. Update the order status to 'picking'.
  * 5. Create an order event to log the pick confirmation.
+ * 6. Update KPI snapshot if an item becomes out of stock.
  */
 export async function confirmPick(db: Firestore, input: PickingOperationInput, userId: string): Promise<void> {
   const { companyId, warehouseId, clientId, orderId } = input;
   const orderRef = doc(db, 'orders', orderId);
+  const kpiRef = doc(db, 'kpi_snapshots', companyId);
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -150,6 +152,8 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
       if (!order.items || order.items.length === 0) {
         throw new Error('La orden no tiene ítems para confirmar el picking.');
       }
+
+      let criticalStockChange = 0;
 
       // Check if there is enough reservation and stock
       for (const item of order.items) {
@@ -170,6 +174,11 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
         }
         if (currentQty < item.qty) {
           throw new Error(`Stock físico insuficiente para ${item.sku}. Necesario: ${item.qty}, Físico: ${currentQty}`);
+        }
+
+        // Check if this movement will make the stock critical
+        if (currentQty - item.qty === 0) {
+            criticalStockChange++;
         }
       }
 
@@ -217,6 +226,11 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
         createdBy: userId,
       };
       transaction.set(eventRef, newEvent);
+
+      // Update KPI snapshot if needed
+      if (criticalStockChange > 0) {
+        transaction.set(kpiRef, { criticalStockItems: increment(criticalStockChange), updatedAt: serverTimestamp() }, { merge: true });
+      }
     });
      console.log('[Inventory] Pick confirmation registered successfully.');
   } catch (error: any) {

@@ -10,6 +10,7 @@ import {
   getDocs,
   writeBatch,
   Timestamp,
+  increment,
   type Firestore,
 } from 'firebase/firestore';
 import type { Order, OrderStatus, OrderEvent, OrderPriority } from '@/lib/types';
@@ -29,6 +30,7 @@ type CreateOrderData = {
  * Creates a new order and an initial 'created' event.
  * Validates for uniqueness of orderNumber within the same company.
  * Calculates totalItems and totalUnits.
+ * Updates the KPI snapshot.
  */
 export async function createOrder(
   db: Firestore,
@@ -81,6 +83,14 @@ export async function createOrder(
   };
   batch.set(eventRef, initialEvent);
   
+  // 3. Update KPI Snapshot
+  const kpiRef = doc(db, 'kpi_snapshots', data.companyId);
+  batch.set(kpiRef, {
+    ordersToday: increment(1),
+    ordersInProgress: increment(1),
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+
   // Commit the batch
   await batch.commit();
   
@@ -147,42 +157,72 @@ export async function addOrderEvent(
   });
 }
 
+const IN_PROGRESS_STATUSES: OrderStatus[] = ['created', 'received', 'picking', 'packed'];
+const FINAL_STATUSES: OrderStatus[] = ['delivered', 'cancelled'];
 /**
  * Updates the status of an order and adds a corresponding event.
- * Also updates the `updatedAt` timestamp.
+ * Also updates the `updatedAt` timestamp and the KPI snapshot.
  */
 export async function updateOrderStatus(
   db: Firestore,
   orderId: string,
-  status: OrderStatus,
+  newStatus: OrderStatus,
   userId: string
 ): Promise<void> {
   const orderRef = doc(db, 'orders', orderId);
+  
   const orderSnap = await getDoc(orderRef);
-
   if (!orderSnap.exists()) {
     throw new Error("Order not found");
   }
-  const orderData = orderSnap.data();
+  const order = { id: orderSnap.id, ...orderSnap.data() } as Order;
+  const oldStatus = order.status;
+
+  // Don't do anything if status is the same
+  if (oldStatus === newStatus) {
+    return;
+  }
 
   const batch = writeBatch(db);
 
   // 1. Update the order status and updatedAt timestamp
   batch.update(orderRef, { 
-    status: status,
+    status: newStatus,
     updatedAt: serverTimestamp()
   });
 
   // 2. Add an order event
   const eventRef = doc(collection(db, 'orders', orderId, 'events'));
   const newEvent: Omit<OrderEvent, 'id'> = {
-    companyId: orderData.companyId, // Use companyId from the fetched order
-    type: status,
-    message: `El estado de la orden cambió a: ${status}`,
+    companyId: order.companyId,
+    type: newStatus,
+    message: `El estado de la orden cambió a: ${newStatus}`,
     createdAt: serverTimestamp(),
     createdBy: userId,
   };
   batch.set(eventRef, newEvent);
+
+  // 3. Update KPI Snapshot
+  const kpiRef = doc(db, 'kpi_snapshots', order.companyId);
+  const kpiUpdates: { [key: string]: any } = { updatedAt: serverTimestamp() };
+
+  const wasInProgress = IN_PROGRESS_STATUSES.includes(oldStatus);
+  const isNowInProgress = IN_PROGRESS_STATUSES.includes(newStatus);
+  const wasDelayed = order.promiseAt.toDate() < new Date() && !FINAL_STATUSES.includes(oldStatus);
+  const isNowFinal = FINAL_STATUSES.includes(newStatus);
+
+  if (wasInProgress && !isNowInProgress) {
+    kpiUpdates.ordersInProgress = increment(-1);
+  } else if (!wasInProgress && isNowInProgress) {
+    kpiUpdates.ordersInProgress = increment(1);
+  }
+
+  if (wasDelayed && isNowFinal) {
+    kpiUpdates.ordersDelayed = increment(-1);
+  }
+  
+  batch.set(kpiRef, kpiUpdates, { merge: true });
+
 
   await batch.commit();
 }
