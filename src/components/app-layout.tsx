@@ -40,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import PageSpinner from './page-spinner';
+import { can } from '@/lib/permissions';
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -62,7 +63,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     
     // Route protection based on role
     if (!loading && user && appUser) {
-      if (pathname.startsWith('/admin') && role !== 'super_admin') {
+      if (pathname.startsWith('/admin') && !can(role, 'admin:view:console')) {
         router.replace('/dashboard');
       }
     }
@@ -110,7 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
-            {role === 'super_admin' && (
+            {can(role, 'admin:view:console') && (
               <SidebarMenuItem>
                  <SidebarMenuButton
                     isActive={pathname.startsWith('/admin')}

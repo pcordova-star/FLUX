@@ -5,7 +5,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { seedDatabase } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import { Loader2, Database } from 'lucide-react';
+import { Loader2, DatabaseZap } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Terminal } from 'lucide-react';
 
 export default function SeedPage() {
   const { toast } = useToast();
@@ -35,14 +37,31 @@ export default function SeedPage() {
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Consola de Administración</h1>
         </div>
-        <Card className="max-w-md">
+        <Card className="max-w-lg">
           <CardHeader>
-            <CardTitle>Inicializar Base de Datos</CardTitle>
-            <CardDescription>Inicializa la aplicación con datos de partida. Esta acción solo debe realizarse una vez.</CardDescription>
+            <CardTitle>Inicializar Base de Datos (Demo)</CardTitle>
+            <CardDescription>
+              Puebla la base de datos con un conjunto de datos de demostración inteligentes.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+             <Alert>
+              <Terminal className="h-4 w-4" />
+              <AlertTitle>Acción de Alto Privilegio</AlertTitle>
+              <AlertDescription>
+                Esta operación escribe directamente en la base de datos utilizando credenciales de administrador y solo debe ser ejecutada una vez en un proyecto nuevo.
+              </AlertDescription>
+            </Alert>
             <p className="text-sm text-muted-foreground">
-              Al hacer clic en este botón, se llenará la base de datos de Firestore con las colecciones y documentos iniciales necesarios para que la aplicación funcione correctamente. Esto incluye la creación de una empresa predeterminada, un usuario administrador y otros registros necesarios.
+              Al hacer clic, se crearán atómicamente:
+              <ul className="list-disc pl-5 mt-2 space-y-1">
+                <li>Una compañía de demostración.</li>
+                <li>Tres usuarios con roles (admin, operator, viewer).</li>
+                <li>Un almacén principal.</li>
+                <li>Tres productos con diferentes niveles de stock.</li>
+                <li>Dos órdenes de ejemplo (una abierta, una completada).</li>
+                <li>Un snapshot de KPIs inicializado.</li>
+              </ul>
             </p>
           </CardContent>
           <CardFooter>
@@ -50,9 +69,9 @@ export default function SeedPage() {
               {isPending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
-                <Database className="mr-2 h-4 w-4" />
+                <DatabaseZap className="mr-2 h-4 w-4" />
               )}
-              {isPending ? 'Inicializando...' : 'Inicializar Base de Datos'}
+              {isPending ? 'Inicializando...' : 'Poblar con Datos Demo'}
             </Button>
           </CardFooter>
         </Card>
