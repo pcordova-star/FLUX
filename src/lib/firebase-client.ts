@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { enableIndexedDbPersistence, getFirestore, type Firestore } from "firebase/firestore";
+import { enableIndexedDbPersistence, getFirestore, type Firestore, initializeFirestore, memoryLocalCache } from "firebase/firestore";
 import { getStorage, type Storage } from "firebase/storage";
 
 // Your web app's Firebase configuration
@@ -47,29 +47,39 @@ if (getApps().length === 0) {
     app = getApp();
 }
 
-firestore = getFirestore(app);
+// Initialize services
 auth = getAuth(app);
 storage = getStorage(app);
 
-if (typeof window !== 'undefined') {
-  try {
-    // This will only be executed on the client
-    if (!(window as any).__firestorePersistenceEnabled) {
-      enableIndexedDbPersistence(firestore)
-        .then(() => console.log("[FirebaseDiag] Firestore persistence enabled."))
-        .catch((error: any) => {
-          if (error.code === 'failed-precondition') {
-            console.warn("[FirebaseDiag] Firestore persistence failed: multiple tabs open.");
-          } else if (error.code === 'unimplemented') {
-            console.warn("[FirebaseDiag] Firestore persistence not available in this browser.");
-          }
-        });
-      (window as any).__firestorePersistenceEnabled = true;
+// Firestore initialization with DEV mitigation
+if (process.env.NODE_ENV === 'production') {
+    firestore = getFirestore(app);
+    // Enable persistence in production
+    if (typeof window !== 'undefined') {
+        try {
+            if (!(window as any).__firestorePersistenceEnabled) {
+                enableIndexedDbPersistence(firestore)
+                    .then(() => console.log("[FirebaseDiag] Firestore persistence enabled for production."))
+                    .catch((error: any) => {
+                        if (error.code === 'failed-precondition') {
+                            console.warn("[FirebaseDiag] Firestore persistence failed: multiple tabs open.");
+                        } else if (error.code === 'unimplemented') {
+                            console.warn("[FirebaseDiag] Firestore persistence not available in this browser.");
+                        }
+                    });
+                (window as any).__firestorePersistenceEnabled = true;
+            }
+        } catch (error: any) {
+            console.error("[FirebaseDiag] Error enabling persistence", error);
+        }
     }
-  } catch (error: any) {
-     console.error("[FirebaseDiag] Error enabling persistence", error);
-  }
+} else {
+    // DEV mitigation for Firestore INTERNAL ASSERTION ca9 under HMR
+    firestore = initializeFirestore(app, {
+        localCache: memoryLocalCache(),
+        experimentalForceLongPolling: true,
+    });
+    console.log("[FirebaseDiag] Firestore initialized with in-memory cache for DEV.");
 }
-
 
 export { app, firestore, auth, storage };
