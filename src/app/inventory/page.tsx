@@ -116,9 +116,11 @@ export default function InventoryPage() {
                 <p className="text-muted-foreground mt-2">
                   No se encontraron productos en ningún almacén.
                 </p>
-                <p className="text-sm text-muted-foreground">
-                  Intenta recibir stock para empezar a gestionar tu inventario.
-                </p>
+                {canMoveStock && (
+                    <p className="text-sm text-muted-foreground">
+                    Intenta <Button variant="link" className="p-0 h-auto" onClick={() => setReceiveStockOpen(true)}>recibir stock</Button> para empezar a gestionar tu inventario.
+                    </p>
+                )}
               </div>
             ) : null}
             {!loading && !error && balances.length > 0 ? (
@@ -141,9 +143,9 @@ export default function InventoryPage() {
                       <TableCell>{balance.warehouseId}</TableCell>
                       <TableCell>{balance.clientId}</TableCell>
                       <TableCell>
-                        <StockStatusBadge qty={balance.qty} />
+                        <StockStatusBadge qty={balance.qty - balance.reservedQty} />
                       </TableCell>
-                      <TableCell className="text-right font-semibold">{balance.qty}</TableCell>
+                      <TableCell className="text-right font-semibold">{balance.qty - balance.reservedQty}</TableCell>
                       <TableCell className="text-right">{balance.reservedQty || 0}</TableCell>
                       <TableCell>
                         {balance.updatedAt ? format(balance.updatedAt.toDate(), 'dd/MM/yyyy HH:mm') : 'N/A'}

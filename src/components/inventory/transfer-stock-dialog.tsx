@@ -22,11 +22,11 @@ interface TransferStockDialogProps {
 }
 
 const formSchema = z.object({
-  sku: z.string().min(1, 'El SKU es requerido.'),
+  sku: z.string().trim().min(1, 'El SKU es requerido.'),
   qty: z.coerce.number().int().positive('La cantidad debe ser un número positivo.'),
-  fromWarehouseId: z.string().min(1, 'El almacén de origen es requerido.'),
-  toWarehouseId: z.string().min(1, 'El almacén de destino es requerido.'),
-  clientId: z.string().min(1, 'El ID de cliente es requerido.'),
+  fromWarehouseId: z.string().trim().min(1, 'El almacén de origen es requerido.'),
+  toWarehouseId: z.string().trim().min(1, 'El almacén de destino es requerido.'),
+  clientId: z.string().trim().min(1, 'El ID de cliente es requerido.'),
   note: z.string().optional(),
 }).refine(data => data.fromWarehouseId !== data.toWarehouseId, {
     message: "El almacén de origen y destino no pueden ser iguales.",
@@ -77,7 +77,7 @@ export function TransferStockDialog({ isOpen, onOpenChange }: TransferStockDialo
       toast({
         variant: 'destructive',
         title: 'Error en la Transferencia',
-        description: error.message || 'Ocurrió un error desconocido.',
+        description: error.message || 'Ocurrió un error desconocido. Verifica el stock disponible y los IDs.',
       });
     } finally {
       setIsLoading(false);
@@ -95,7 +95,7 @@ export function TransferStockDialog({ isOpen, onOpenChange }: TransferStockDialo
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Transferir Stock entre Almacenes</DialogTitle>
-          <DialogDescription>Mueve inventario de una ubicación a otra. Esto se registrará como una salida y una entrada.</DialogDescription>
+          <DialogDescription>Mueve inventario de una ubicación a otra. Esto se registrará como una salida y una entrada atómica.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -162,10 +162,7 @@ export function TransferStockDialog({ isOpen, onOpenChange }: TransferStockDialo
                    <FormControl>
                     <Input {...field} />
                   </FormControl>
-                   <FormDescription className="text-xs">
-                     El stock debe pertenecer al mismo cliente en ambos almacenes.
-                   </FormDescription>
-                  <FormMessage />
+                   <FormMessage />
                 </FormItem>
               )}
             />

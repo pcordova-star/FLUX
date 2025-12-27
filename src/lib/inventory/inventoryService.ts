@@ -6,7 +6,9 @@ import {
   increment,
   type Firestore,
   setDoc,
+  getDoc,
 } from 'firebase/firestore';
+import { sanitizeDocId } from '../utils';
 
 interface ReceiveStockInput {
   companyId: string;
@@ -15,14 +17,6 @@ interface ReceiveStockInput {
   sku: string;
   qty: number;
   note?: string;
-}
-
-/**
- * Sanitizes a string to be used as a Firestore document ID.
- * Replaces invalid characters (including whitespace) with underscores.
- */
-function sanitizeDocId(id: string): string {
-    return id.replace(/[.*~/[\]\s]/g, '_');
 }
 
 /**

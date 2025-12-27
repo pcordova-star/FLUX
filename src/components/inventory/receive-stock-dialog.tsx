@@ -22,9 +22,9 @@ interface ReceiveStockDialogProps {
 }
 
 const formSchema = z.object({
-  clientId: z.string().min(1, 'El ID de cliente es requerido.'),
-  warehouseId: z.string().min(1, 'El ID de almacén es requerido.'),
-  sku: z.string().min(1, 'El SKU es requerido.'),
+  clientId: z.string().trim().min(1, 'El ID de cliente es requerido.'),
+  warehouseId: z.string().trim().min(1, 'El ID de almacén es requerido.'),
+  sku: z.string().trim().min(1, 'El SKU es requerido.'),
   qty: z.coerce.number().int().positive('La cantidad debe ser un número positivo.'),
   note: z.string().optional(),
 });
@@ -38,9 +38,10 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      clientId: '',
+      clientId: 'default',
       warehouseId: '',
       sku: '',
+      qty: 1,
       note: '',
     },
   });
@@ -62,28 +63,34 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
       }, user.uid);
 
       toast({
-        title: 'Stock Recibido Correctamente',
-        description: `${values.qty} unidades de ${values.sku} añadidas al inventario.`,
+        title: 'Entrada de Stock Registrada',
+        description: `${values.qty} unidades de ${values.sku} añadidas al inventario de ${values.warehouseId}.`,
       });
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Error al recibir stock',
-        description: error.message || 'Ocurrió un error desconocido.',
+        title: 'Error al Recibir Stock',
+        description: error.message || 'Ocurrió un error desconocido. Verifica los datos e intenta de nuevo.',
       });
     } finally {
       setIsLoading(false);
     }
   }
+  
+  React.useEffect(() => {
+    if (!isOpen) {
+      form.reset();
+    }
+  }, [isOpen, form]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Recibir Stock</DialogTitle>
-          <DialogDescription>Registra una entrada de inventario manual. Esto aumentará el stock disponible.</DialogDescription>
+          <DialogDescription>Registra una entrada de inventario manual. Esto aumentará el stock disponible en el almacén especificado.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -133,7 +140,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
                 <FormItem>
                   <FormLabel>ID de Cliente (Dueño del stock)</FormLabel>
                    <FormControl>
-                    <Input placeholder="client_klog_001" {...field} />
+                    <Input placeholder="default" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
