@@ -1,4 +1,4 @@
-import { UserRole, USER_ROLES } from './types';
+import { UserRole } from './types';
 
 // Define todas las acciones posibles en la aplicación para tener un control tipado.
 export const ACTIONS = [
@@ -25,29 +25,36 @@ export const ACTIONS = [
 
 export type Action = typeof ACTIONS[number];
 
+// Define los permisos para cada rol de forma separada para evitar errores de inicialización.
+const viewerPermissions: Action[] = [
+  'order:read',
+  'inventory:read',
+  'product:read',
+  'warehouse:read',
+];
+
+const operatorPermissions: Action[] = [
+  ...viewerPermissions,
+  'order:create',
+  'order:update:status',
+  'inventory:move',
+];
+
+const adminPermissions: Action[] = [
+  ...operatorPermissions,
+  'order:delete',
+  'product:edit',
+  'warehouse:edit',
+  'user:manage',
+];
+
 // Define los permisos para cada rol. Los roles superiores heredan los permisos de los inferiores.
 const permissions: Record<UserRole, Action[]> = {
-  viewer: [
-    'order:read',
-    'inventory:read',
-    'product:read',
-    'warehouse:read',
-  ],
-  operator: [
-    ...USER_ROLES.filter(r => r === 'viewer').flatMap(r => permissions[r]),
-    'order:create',
-    'order:update:status',
-    'inventory:move',
-  ],
-  admin: [
-    ...USER_ROLES.filter(r => r === 'operator').flatMap(r => permissions[r]),
-    'order:delete',
-    'product:edit',
-    'warehouse:edit',
-    'user:manage',
-  ],
+  viewer: viewerPermissions,
+  operator: operatorPermissions,
+  admin: adminPermissions,
   super_admin: [
-    // super_admin puede hacer todo
+    // super_admin puede hacer todo, se maneja en la función can()
   ],
 };
 
