@@ -45,7 +45,8 @@ export async function transferStock(db: Firestore, input: TransferStockInput, us
   const fromBalanceRef = doc(db, 'inventory_balances', fromBalanceId);
   const toBalanceRef = doc(db, 'inventory_balances', toBalanceId);
   
-  const transferId = doc(collection(db, 'dummy')).id; // Generate a unique ID for the transfer
+  // Generate a unique ID for the transfer to link ledger entries
+  const transferId = doc(collection(db, 'dummy')).id; 
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -124,12 +125,13 @@ export async function transferStock(db: Firestore, input: TransferStockInput, us
       });
     });
 
-    console.log(`[Inventory] Stock transfer ${transferId} completed successfully.`);
+    console.log(`[Inventory] Transfer ${transferId} completed successfully.`);
   } catch (error) {
-    console.error("Error en la transacción de transferencia de stock:", error);
+    console.error("Error in stock transfer transaction:", error);
     if (error instanceof Error) {
-        throw error;
+        throw error; // Re-throw specific, validated errors
     }
+    // Throw a generic error for unknown transaction failures
     throw new Error("La operación de transferencia de stock falló. Por favor, inténtalo de nuevo.");
   }
 }
