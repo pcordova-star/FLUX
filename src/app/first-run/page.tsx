@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
-import { doc, writeBatch, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, getDoc, collection } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -125,8 +125,7 @@ export default function FirstRunPage() {
   const { toast } = useToast();
   
   const [step, setStep] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSkipping, setIsSkipping] = useState(false);
+  const [isFinishing, startFinishTransition] = useTransition();
 
   const methods = useForm<FormValues>({
     resolver: async (data, context, options) => {
@@ -137,8 +136,12 @@ export default function FirstRunPage() {
   });
 
   useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/login');
+    if (!authLoading) {
+      if (!user) {
+        router.replace('/login');
+      } else if (localStorage.getItem('onboardingComplete') === 'true') {
+        router.replace('/dashboard');
+      }
     }
   }, [user, authLoading, router]);
 
@@ -154,7 +157,6 @@ export default function FirstRunPage() {
   };
   
   const handleSkip = () => {
-    setIsSkipping(true);
     if (typeof window !== 'undefined') {
         localStorage.setItem('onboardingComplete', 'true');
     }
@@ -170,108 +172,106 @@ export default function FirstRunPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'La conexión con la base de datos no está disponible.' });
         return;
     }
-    setIsLoading(true);
 
-    const values = methods.getValues();
+    startFinishTransition(async () => {
+      const values = methods.getValues();
 
-    try {
-        const batch = writeBatch(firestore);
+      try {
+          const batch = writeBatch(firestore);
 
-        // 1. Update company if it's the default one
-        const companyRef = doc(firestore, 'companies', companyId);
-        const companySnap = await getDoc(companyRef);
-        if (companySnap.exists() && companySnap.data().name.includes('Default')) {
-            batch.update(companyRef, { name: values.companyName });
-        }
+          // 1. Update company if it's the default one
+          const companyRef = doc(firestore, 'companies', companyId);
+          const companySnap = await getDoc(companyRef);
+          if (companySnap.exists() && companySnap.data().name.includes('Default')) {
+              batch.update(companyRef, { name: values.companyName });
+          }
 
-        // 2. Create Warehouse
-        const warehouseId = values.warehouseName.toLowerCase().replace(/\s+/g, '_');
-        const warehouseRef = doc(firestore, 'warehouses', warehouseId);
-        batch.set(warehouseRef, { 
-            name: values.warehouseName, 
-            location: values.warehouseLocation || '',
-            companyId: companyId,
-            createdAt: serverTimestamp(),
-        });
-        
-        // 3. Create Product
-        const productRef = doc(firestore, 'products', values.productSku);
-        batch.set(productRef, {
-            name: values.productName,
-            sku: values.productSku,
-            companyId: companyId,
-            createdAt: serverTimestamp(),
-            description: '',
-            price: 0
-        });
-        
-        // 4. Create initial inventory if stock > 0
-        const clientId = appUser.clientId || 'default';
-        if (values.initialStock > 0) {
-            const balanceId = `${companyId}_${warehouseId}_${clientId}_${values.productSku.toLowerCase()}`;
-            const balanceRef = doc(firestore, 'inventory_balances', balanceId);
-            batch.set(balanceRef, {
-                companyId,
-                warehouseId,
-                clientId,
-                sku: values.productSku,
-                qty: values.initialStock,
-                reservedQty: 0,
-                updatedAt: serverTimestamp(),
-            });
+          // 2. Create Warehouse
+          const warehouseId = values.warehouseName.toLowerCase().replace(/\s+/g, '_');
+          const warehouseRef = doc(firestore, 'warehouses', warehouseId);
+          batch.set(warehouseRef, { 
+              name: values.warehouseName, 
+              location: values.warehouseLocation || '',
+              companyId: companyId,
+              createdAt: serverTimestamp(),
+          });
+          
+          // 3. Create Product
+          const productRef = doc(firestore, 'products', values.productSku);
+          batch.set(productRef, {
+              name: values.productName,
+              sku: values.productSku,
+              companyId: companyId,
+              createdAt: serverTimestamp(),
+              description: '',
+              price: 0
+          });
+          
+          // 4. Create initial inventory if stock > 0
+          if (values.initialStock > 0) {
+              const balanceId = `${companyId}_${warehouseId}_${values.productSku.toLowerCase()}`;
+              const balanceRef = doc(firestore, 'inventory_balances', balanceId);
+              batch.set(balanceRef, {
+                  companyId,
+                  warehouseId,
+                  clientId: 'default', // Using a default client for onboarding
+                  sku: values.productSku,
+                  qty: values.initialStock,
+                  reservedQty: 0,
+                  updatedAt: serverTimestamp(),
+              });
 
-            // Create ledger entry
-            const ledgerRef = doc(collection(firestore, 'inventory_ledger'));
-            batch.set(ledgerRef, {
-                companyId,
-                warehouseId,
-                clientId,
-                sku: values.productSku,
-                deltaQty: values.initialStock,
-                type: 'inbound',
-                refType: 'manual',
-                note: 'Stock inicial del onboarding',
-                createdAt: serverTimestamp(),
-                createdBy: appUser.uid
-            });
-        }
-        
-        // 5. Update user profile to link to the new warehouse
-        const userRef = doc(firestore, 'users', appUser.uid);
-        batch.update(userRef, { warehouseIds: [warehouseId] });
+              // Create ledger entry
+              const ledgerRef = doc(collection(firestore, 'inventory_ledger'));
+              batch.set(ledgerRef, {
+                  companyId,
+                  warehouseId,
+                  clientId: 'default',
+                  sku: values.productSku,
+                  deltaQty: values.initialStock,
+                  type: 'inbound',
+                  refType: 'manual',
+                  note: 'Stock inicial del onboarding',
+                  createdAt: serverTimestamp(),
+                  createdBy: appUser.uid
+              });
+          }
+          
+          // 5. Update user profile to link to the new warehouse
+          const userRef = doc(firestore, 'users', appUser.uid);
+          batch.update(userRef, { warehouseIds: [warehouseId] });
 
-        // 6. Set initial KPI snapshot
-        const kpiRef = doc(firestore, 'kpi_snapshots', companyId);
-        batch.set(kpiRef, {
-            criticalStockItems: values.initialStock > 0 ? 0 : 1,
-            ordersToday: 0,
-            ordersInProgress: 0,
-            ordersDelayed: 0,
-            updatedAt: serverTimestamp()
-        }, { merge: true });
+          // 6. Set initial KPI snapshot
+          const kpiRef = doc(firestore, 'kpi_snapshots', companyId);
+          batch.set(kpiRef, {
+              criticalStockItems: values.initialStock > 0 ? 0 : 1,
+              ordersToday: 0,
+              ordersInProgress: 0,
+              ordersDelayed: 0,
+              updatedAt: serverTimestamp()
+          }, { merge: true });
 
 
-        await batch.commit();
+          await batch.commit();
 
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('onboardingComplete', 'true');
-        }
-        
-        toast({
-            title: '¡Configuración completada!',
-            description: 'Tu espacio de trabajo está listo. Bienvenido a FLUX.',
-        });
-        router.push('/dashboard');
-    } catch (error: any) {
-        console.error("Error finishing onboarding:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Error al finalizar',
-            description: error.message || 'No se pudo guardar la configuración.',
-        });
-    } finally {
-        setIsLoading(false);
-    }
+          if (typeof window !== 'undefined') {
+              localStorage.setItem('onboardingComplete', 'true');
+          }
+          
+          toast({
+              title: '¡Configuración completada!',
+              description: 'Tu espacio de trabajo está listo. Bienvenido a FLUX.',
+          });
+          router.push('/dashboard');
+      } catch (error: any) {
+          console.error("Error finishing onboarding:", error);
+          toast({
+              variant: 'destructive',
+              title: 'Error al finalizar',
+              description: error.message || 'No se pudo guardar la configuración.',
+          });
+      }
+    });
   };
 
   if (authLoading || !user) {
@@ -299,19 +299,18 @@ export default function FirstRunPage() {
               <StepContent step={step} />
             </CardContent>
             <CardFooter className="flex justify-between">
-                <Button variant="ghost" onClick={handleSkip} disabled={isLoading || isSkipping}>
-                  {isSkipping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                <Button variant="ghost" onClick={handleSkip} disabled={isFinishing}>
                   Omitir por ahora
                 </Button>
                 <div className="flex gap-2">
-                  {step > 0 && <Button variant="outline" onClick={handleBack} disabled={isLoading}>Atrás</Button>}
+                  {step > 0 && <Button variant="outline" onClick={handleBack} disabled={isFinishing}>Atrás</Button>}
                   {isFinalStep ? (
-                    <Button onClick={handleFinish} disabled={isLoading} size="lg">
-                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                    <Button onClick={handleFinish} disabled={isFinishing} size="lg">
+                        {isFinishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                         Finalizar e ir al Dashboard
                     </Button>
                   ) : (
-                    <Button onClick={handleNext} disabled={isLoading}>Continuar</Button>
+                    <Button onClick={handleNext}>Continuar</Button>
                   )}
                 </div>
             </CardFooter>

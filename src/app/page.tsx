@@ -10,19 +10,21 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (loading) return;
+    if (loading) {
+      return; // Wait until auth state is confirmed
+    }
 
     if (user) {
-        if (typeof window !== 'undefined') {
-            const onboardingComplete = localStorage.getItem('onboardingComplete');
-            if (onboardingComplete === 'true') {
-                router.replace('/dashboard');
-            } else {
-                router.replace('/first-run');
-            }
+      if (typeof window !== 'undefined') {
+        const onboardingComplete = localStorage.getItem('onboardingComplete');
+        if (onboardingComplete === 'true') {
+          router.replace('/dashboard');
+        } else {
+          router.replace('/first-run');
         }
+      }
     } else {
-        router.replace('/login');
+      router.replace('/login');
     }
   }, [user, loading, router]);
 
