@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User, onIdTokenChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { AppUser, UserRole } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
 import { useFirebase } from './firebase-provider';
@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   
   useEffect(() => {
     if (!auth || !firestore) {
-      console.error('[AuthDiag] Firebase Auth or Firestore not available on mount.');
+      if (!loading) setLoading(true); // Ensure loading is true if firebase is not ready
       return;
     };
 
@@ -58,13 +58,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setLoading(true);
-        console.log(`[AuthDiag] Token changed. User ID: ${firebaseUser.uid}. Fetching AppUser...`);
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (userDocSnap.exists()) {
           const fetchedAppUser = userDocSnap.data() as AppUser;
-          console.log(`[AuthDiag] AppUser found:`, { role: fetchedAppUser.role, companyId: fetchedAppUser.companyId, isActive: fetchedAppUser.isActive });
+          console.log(`[AuthDiag] AppUser loaded:`, { role: fetchedAppUser.role, companyId: fetchedAppUser.companyId, isActive: fetchedAppUser.isActive });
           if (fetchedAppUser.isActive) {
             setUser(firebaseUser);
             setAppUser(fetchedAppUser);
@@ -73,8 +72,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             await handleLogout();
           }
         } else {
-          console.error(`[AuthDiag] AppUser document not found for UID ${firebaseUser.uid}. Forcing logout.`);
-          await handleLogout();
+          console.log(`[AuthDiag] AppUser document not found for UID ${firebaseUser.uid}. Creating it...`);
+          const newUser: AppUser = {
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            displayName: firebaseUser.displayName || firebaseUser.email,
+            role: 'admin',
+            companyId: 'default', // Default company for new users
+            isActive: true,
+            createdAt: serverTimestamp() as any, // Cast for client-side representation
+          };
+
+          try {
+            await setDoc(userDocRef, newUser);
+            console.log("[AuthDiag] AppUser created");
+            // Set client-side user object immediately. createdAt will be a client-side object for now.
+            setAppUser({ ...newUser, createdAt: new Date() as any });
+            setUser(firebaseUser);
+          } catch (error) {
+            console.error("[AuthDiag] Error creating AppUser document:", error);
+            await handleLogout(); // Logout if we can't create the user profile
+          }
         }
       } else {
         console.log('[AuthDiag] Token changed. User is null.');
