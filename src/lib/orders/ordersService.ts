@@ -30,14 +30,13 @@ type CreateOrderData = {
  * Creates a new order and an initial 'created' event.
  * Validates for uniqueness of orderNumber within the same company.
  * Calculates totalItems and totalUnits.
- * Updates the KPI snapshot.
+ * Updates the KPI snapshot and onboarding checklist.
  */
 export async function createOrder(
   db: Firestore,
   data: CreateOrderData,
   userId: string
 ): Promise<string> {
-  // Validate for uniqueness of orderNumber within the company
   const q = query(
     collection(db, 'orders'),
     where('companyId', '==', data.companyId),
@@ -52,13 +51,11 @@ export async function createOrder(
     throw new Error('La orden debe contener al menos un ítem.');
   }
 
-  // Calculate totals
   const totalItems = data.items.length;
   const totalUnits = data.items.reduce((sum, item) => sum + item.qty, 0);
 
   const batch = writeBatch(db);
   
-  // 1. Create the order document
   const orderRef = doc(collection(db, 'orders'));
   const newOrder: Omit<Order, 'id'> = {
     ...data,
@@ -72,7 +69,6 @@ export async function createOrder(
   };
   batch.set(orderRef, newOrder);
 
-  // 2. Create the initial order event
   const eventRef = doc(collection(db, 'orders', orderRef.id, 'events'));
   const initialEvent: Omit<OrderEvent, 'id'> = {
     companyId: data.companyId,
@@ -83,7 +79,6 @@ export async function createOrder(
   };
   batch.set(eventRef, initialEvent);
   
-  // 3. Update KPI Snapshot
   const kpiRef = doc(db, 'kpi_snapshots', data.companyId);
   batch.set(kpiRef, {
     ordersToday: increment(1),
@@ -91,7 +86,11 @@ export async function createOrder(
     updatedAt: serverTimestamp()
   }, { merge: true });
 
-  // Commit the batch
+  // Update onboarding checklist
+  const checklistRef = doc(db, 'onboarding_checklists', data.companyId);
+  // We don't need to read it first, just set the update. Firestore handles non-existence gracefully.
+  batch.update(checklistRef, { 'steps.createOrder': true, updatedAt: serverTimestamp() });
+
   await batch.commit();
   
   return orderRef.id;

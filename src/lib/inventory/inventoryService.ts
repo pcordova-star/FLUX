@@ -5,6 +5,7 @@ import {
   runTransaction,
   increment,
   type Firestore,
+  setDoc,
 } from 'firebase/firestore';
 
 interface ReceiveStockInput {
@@ -29,6 +30,7 @@ function sanitizeDocId(id: string): string {
  * 1. Upserts the inventory balance for a given SKU.
  * 2. Creates a ledger entry to record the movement.
  * 3. Updates the KPI snapshot for critical stock.
+ * 4. Updates the onboarding checklist.
  */
 export async function receiveStock(db: Firestore, input: ReceiveStockInput, userId: string): Promise<void> {
   const { companyId, warehouseId, clientId, sku, qty, note } = input;
@@ -43,6 +45,7 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
   const balanceRef = doc(db, 'inventory_balances', balanceId);
   const ledgerRef = doc(collection(db, 'inventory_ledger'));
   const kpiRef = doc(db, 'kpi_snapshots', companyId);
+  const checklistRef = doc(db, 'onboarding_checklists', companyId);
 
   try {
     await runTransaction(db, async (transaction) => {
@@ -61,15 +64,11 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
           updatedAt: serverTimestamp(),
           updatedBy: userId,
         });
-        // If the new qty is > 0, it's not a critical item. If we were tracking it as critical, decrement.
-        // This case is for creating a new balance. If it was 0 before, it wasn't tracked.
-        // If the new qty is 0 (unlikely for a receipt), we increment.
         if (qty === 0) {
            kpiUpdates.criticalStockItems = increment(1);
         }
 
       } else {
-        // If balance exists, increment the quantity.
         const currentQty = balanceDoc.data().qty || 0;
         transaction.update(balanceRef, {
           qty: increment(qty),
@@ -77,7 +76,6 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
           updatedBy: userId,
         });
 
-        // If stock was critical (0) and now it is not, decrement the counter.
         if (currentQty === 0 && qty > 0) {
             kpiUpdates.criticalStockItems = increment(-1);
         }
@@ -99,6 +97,15 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
 
       // Update KPIs
       transaction.set(kpiRef, kpiUpdates, { merge: true });
+
+      // Update onboarding checklist
+      const checklistSnap = await transaction.get(checklistRef);
+      if (checklistSnap.exists() && !checklistSnap.data().steps.moveInventory) {
+        transaction.update(checklistRef, {
+          'steps.moveInventory': true,
+          updatedAt: serverTimestamp(),
+        });
+      }
     });
     console.log('[Inventory] Movement registered successfully.');
   } catch (error) {

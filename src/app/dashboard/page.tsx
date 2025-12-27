@@ -11,6 +11,7 @@ import { doc } from 'firebase/firestore';
 import type { KpiSnapshot } from '@/lib/types';
 import TimeseriesChart from '@/components/dashboard/timeseries-chart';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ActivationChecklist } from '@/components/onboarding/activation-checklist';
 
 function KpiCard({ title, value, icon, description, loading }: { title: string, value: string | number, icon: React.ReactNode, description: string, loading: boolean }) {
   return (
@@ -68,6 +69,8 @@ export default function DashboardPage() {
   return (
     <AppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
+        <ActivationChecklist />
+
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Dashboard Ejecutivo</h1>
         </div>

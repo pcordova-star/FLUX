@@ -117,6 +117,18 @@ export interface KpiSnapshot {
   updatedAt: Timestamp | null;
 }
 
+export interface OnboardingChecklist {
+    companyId: string;
+    steps: {
+        createProduct: boolean;
+        createOrder: boolean;
+        moveInventory: boolean;
+        viewDashboard: boolean;
+    },
+    completed: boolean;
+    updatedAt: Timestamp | null;
+}
+
 
 // Below are other types from the original app, kept for reference
 export interface UserProfile {

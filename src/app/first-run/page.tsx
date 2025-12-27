@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
-import { doc, writeBatch, serverTimestamp, getDoc, collection } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, getDoc, collection, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -250,6 +250,20 @@ export default function FirstRunPage() {
               ordersDelayed: 0,
               updatedAt: serverTimestamp()
           }, { merge: true });
+
+          // 7. Create Onboarding Checklist
+          const checklistRef = doc(firestore, 'onboarding_checklists', companyId);
+          batch.set(checklistRef, {
+            companyId,
+            steps: {
+                createProduct: false,
+                createOrder: false,
+                moveInventory: false,
+                viewDashboard: true,
+            },
+            completed: false,
+            updatedAt: serverTimestamp(),
+          });
 
 
           await batch.commit();
