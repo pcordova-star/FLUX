@@ -62,11 +62,14 @@ export interface Order {
   clientId: string;
   warehouseId: string;
   orderNumber: string;
-  promiseAt: Timestamp | null;
+  promiseAt: Timestamp;
   status: OrderStatus;
   priority: OrderPriority;
   items: { sku: string; qty: number }[];
-  createdAt: Timestamp | null;
+  totalItems: number;
+  totalUnits: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
   createdBy: string; // user uid
 }
 
@@ -98,7 +101,7 @@ export type InventoryLedgerType = typeof INVENTORY_LEDGER_TYPES[number];
 export interface InventoryLedger {
   id: string;
   companyId: string;
-  warehouseId: string;
+  warehouseId:string;
   clientId: string;
   sku: string;
   deltaQty: number;

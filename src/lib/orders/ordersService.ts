@@ -28,6 +28,7 @@ type CreateOrderData = {
 /**
  * Creates a new order and an initial 'created' event.
  * Validates for uniqueness of orderNumber within the same company.
+ * Calculates totalItems and totalUnits.
  */
 export async function createOrder(
   db: Firestore,
@@ -49,6 +50,10 @@ export async function createOrder(
     throw new Error('La orden debe contener al menos un ítem.');
   }
 
+  // Calculate totals
+  const totalItems = data.items.length;
+  const totalUnits = data.items.reduce((sum, item) => sum + item.qty, 0);
+
   const batch = writeBatch(db);
   
   // 1. Create the order document
@@ -57,7 +62,10 @@ export async function createOrder(
     ...data,
     promiseAt: Timestamp.fromDate(data.promiseAt),
     status: 'created',
-    createdAt: serverTimestamp(),
+    totalItems,
+    totalUnits,
+    createdAt: serverTimestamp() as Timestamp,
+    updatedAt: serverTimestamp() as Timestamp,
     createdBy: userId,
   };
   batch.set(orderRef, newOrder);
@@ -141,6 +149,7 @@ export async function addOrderEvent(
 
 /**
  * Updates the status of an order and adds a corresponding event.
+ * Also updates the `updatedAt` timestamp.
  */
 export async function updateOrderStatus(
   db: Firestore,
@@ -158,8 +167,11 @@ export async function updateOrderStatus(
 
   const batch = writeBatch(db);
 
-  // 1. Update the order status
-  batch.update(orderRef, { status: status });
+  // 1. Update the order status and updatedAt timestamp
+  batch.update(orderRef, { 
+    status: status,
+    updatedAt: serverTimestamp()
+  });
 
   // 2. Add an order event
   const eventRef = doc(collection(db, 'orders', orderId, 'events'));

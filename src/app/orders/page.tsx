@@ -61,14 +61,18 @@ export default function OrdersPage() {
             {error && <p className="text-destructive">Error: {error.message}</p>}
             {loading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}
             {!loading && orders.length === 0 ? (
-              <p>No se encontraron pedidos.</p>
+              <div className="text-center py-10">
+                <p className="text-muted-foreground">No se encontraron pedidos.</p>
+                 <p className="text-sm text-muted-foreground">Intenta crear una nueva orden para empezar.</p>
+              </div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nº Orden</TableHead>
                     <TableHead>Estado</TableHead>
-                    <TableHead>Prioridad</TableHead>
+                    <TableHead>Items</TableHead>
+                    <TableHead>Unidades</TableHead>
                     <TableHead>Fecha Promesa</TableHead>
                     <TableHead>Creado</TableHead>
                     <TableHead></TableHead>
@@ -83,7 +87,8 @@ export default function OrdersPage() {
                           {order.status}
                         </Badge>
                       </TableCell>
-                      <TableCell>{order.priority}</TableCell>
+                      <TableCell>{order.totalItems}</TableCell>
+                      <TableCell>{order.totalUnits}</TableCell>
                       <TableCell>
                         {order.promiseAt ? format(order.promiseAt.toDate(), 'dd/MM/yyyy') : 'N/A'}
                       </TableCell>
