@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { PlusCircle, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
-import { collection, query, where, orderBy } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit } from 'firebase/firestore';
 import { useCollection } from 'react-firebase-hooks/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -22,15 +22,20 @@ export default function OrdersPage() {
   const { firestore } = useFirebase();
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
 
-  const [ordersSnapshot, loading, error] = useCollection(
-    companyId && firestore ? query(
+  // Memoize the query to prevent re-creating it on every render, which can cause infinite loops with react-firebase-hooks.
+  const ordersQuery = useMemo(() => {
+    if (!companyId || !firestore) return null;
+    return query(
       collection(firestore, 'orders'),
       where('companyId', '==', companyId),
-      orderBy('createdAt', 'desc')
-    ) : null
-  );
+      orderBy('createdAt', 'desc'),
+      limit(25)
+    );
+  }, [companyId, firestore]);
 
-  if (authLoading || loading) {
+  const [ordersSnapshot, loading, error] = useCollection(ordersQuery);
+
+  if (authLoading) {
     return <PageSpinner />;
   }
 
@@ -55,17 +60,26 @@ export default function OrdersPage() {
         <Card>
           <CardHeader>
             <CardTitle>Gestionar Pedidos</CardTitle>
-            <CardDescription>Visualiza y gestiona los pedidos de los clientes.</CardDescription>
+            <CardDescription>Visualiza los últimos 25 pedidos de la compañía.</CardDescription>
           </CardHeader>
           <CardContent>
-            {error && <p className="text-destructive">Error: {error.message}</p>}
-            {loading && <div className="flex justify-center p-8"><Loader2 className="animate-spin" /></div>}
-            {!loading && orders.length === 0 ? (
+            {error && (
+               <div className="text-center py-10 text-destructive">
+                <p>Error al cargar los pedidos: {error.message}</p>
+              </div>
+            )}
+            {loading && (
+              <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            )}
+            {!loading && !error && orders.length === 0 && (
               <div className="text-center py-10">
                 <p className="text-muted-foreground">No se encontraron pedidos.</p>
                  <p className="text-sm text-muted-foreground">Intenta crear una nueva orden para empezar.</p>
               </div>
-            ) : (
+            )}
+            {!loading && !error && orders.length > 0 && (
               <Table>
                 <TableHeader>
                   <TableRow>
