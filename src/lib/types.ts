@@ -92,7 +92,7 @@ export interface InventoryBalance {
 export const INVENTORY_LEDGER_TYPES = ['inbound', 'outbound', 'adjustment', 'reserve', 'pick'] as const;
 export type InventoryLedgerType = (typeof INVENTORY_LEDGER_TYPES)[number];
 
-export const INVENTORY_LEDGER_REF_TYPES = ['manual', 'order', 'purchase_order', 'return'] as const;
+export const INVENTORY_LEDGER_REF_TYPES = ['manual', 'order', 'purchase_order', 'return', 'transfer'] as const;
 export type InventoryLedgerRefType = (typeof INVENTORY_LEDGER_REF_TYPES)[number];
 
 export interface InventoryLedger {
@@ -106,6 +106,7 @@ export interface InventoryLedger {
   type: InventoryLedgerType;
   refType?: InventoryLedgerRefType;
   relatedOrderId?: string;
+  transferId?: string; // ID único para vincular las dos partes de una transferencia
   note?: string;
   createdAt: Timestamp | null;
   createdBy: string; // user uid

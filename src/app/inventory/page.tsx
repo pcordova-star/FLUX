@@ -4,7 +4,7 @@ import React, { useState, useMemo } from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { PlusCircle, Loader2 } from 'lucide-react';
+import { PlusCircle, Loader2, Replace } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
 import { collection, query, where, orderBy } from 'firebase/firestore';
@@ -13,6 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import { ReceiveStockDialog } from '@/components/inventory/receive-stock-dialog';
+import { TransferStockDialog } from '@/components/inventory/transfer-stock-dialog';
 import type { InventoryBalance } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
 import { can } from '@/lib/permissions';
@@ -43,6 +44,7 @@ export default function InventoryPage() {
   const { companyId, loading: authLoading, role } = useAuth();
   const { firestore } = useFirebase();
   const [isReceiveStockOpen, setReceiveStockOpen] = useState(false);
+  const [isTransferStockOpen, setTransferStockOpen] = useState(false);
 
   const balancesQuery = useMemo(() => {
     if (!companyId || !firestore) return null;
@@ -59,7 +61,7 @@ export default function InventoryPage() {
     return <PageSpinner />;
   }
   
-  const canReceiveStock = can(role, 'inventory:move');
+  const canMoveStock = can(role, 'inventory:move');
 
   const balances = balancesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryBalance)) || [];
 
@@ -68,19 +70,31 @@ export default function InventoryPage() {
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Inventario</h1>
-          {canReceiveStock && (
-            <Button onClick={() => setReceiveStockOpen(true)}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Recibir Stock
-            </Button>
+          {canMoveStock && (
+            <div className="flex gap-2">
+              <Button onClick={() => setTransferStockOpen(true)} variant="outline">
+                <Replace className="mr-2 h-4 w-4" />
+                Transferir Stock
+              </Button>
+              <Button onClick={() => setReceiveStockOpen(true)}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Recibir Stock
+              </Button>
+            </div>
           )}
         </div>
 
-        {canReceiveStock && (
-          <ReceiveStockDialog
-            isOpen={isReceiveStockOpen}
-            onOpenChange={setReceiveStockOpen}
-          />
+        {canMoveStock && (
+          <>
+            <ReceiveStockDialog
+              isOpen={isReceiveStockOpen}
+              onOpenChange={setReceiveStockOpen}
+            />
+            <TransferStockDialog
+              isOpen={isTransferStockOpen}
+              onOpenChange={setTransferStockOpen}
+            />
+          </>
         )}
 
         <Card>
