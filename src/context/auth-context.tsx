@@ -59,41 +59,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (firebaseUser) {
         setLoading(true);
         const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-        const userDocSnap = await getDoc(userDocRef);
+        
+        try {
+            const userDocSnap = await getDoc(userDocRef);
 
-        if (userDocSnap.exists()) {
-          const fetchedAppUser = userDocSnap.data() as AppUser;
-          console.log(`[AuthDiag] AppUser loaded:`, { role: fetchedAppUser.role, companyId: fetchedAppUser.companyId, isActive: fetchedAppUser.isActive });
-          if (fetchedAppUser.isActive) {
-            setUser(firebaseUser);
-            setAppUser(fetchedAppUser);
-          } else {
-            console.warn(`[AuthDiag] User ${firebaseUser.uid} is inactive. Forcing logout.`);
+            if (userDocSnap.exists()) {
+              const fetchedAppUser = userDocSnap.data() as AppUser;
+              console.log(`[AuthDiag] AppUser loaded:`, { role: fetchedAppUser.role, companyId: fetchedAppUser.companyId, isActive: fetchedAppUser.isActive });
+              if (fetchedAppUser.isActive) {
+                setUser(firebaseUser);
+                setAppUser(fetchedAppUser);
+              } else {
+                console.warn(`[AuthDiag] User ${firebaseUser.uid} is inactive. Forcing logout.`);
+                await handleLogout();
+              }
+            } else {
+              console.warn(`[AuthDiag] AppUser document not found for UID ${firebaseUser.uid}. Creating it...`);
+              const newUser: Omit<AppUser, 'createdAt'> = {
+                uid: firebaseUser.uid,
+                email: firebaseUser.email,
+                displayName: firebaseUser.displayName || firebaseUser.email,
+                role: 'admin',
+                companyId: 'default', // Default company for new users
+                isActive: true,
+              };
+
+              await setDoc(userDocRef, {
+                ...newUser,
+                createdAt: serverTimestamp()
+              });
+
+              console.log("[AuthDiag] AppUser created successfully.");
+              
+              // We refetch the document to get the server-generated timestamp
+              const newUserSnap = await getDoc(userDocRef);
+              if (newUserSnap.exists()) {
+                const createdAppUser = newUserSnap.data() as AppUser;
+                setAppUser(createdAppUser);
+                setUser(firebaseUser);
+              } else {
+                 throw new Error("Failed to fetch newly created user profile.");
+              }
+            }
+        } catch (error) {
+            console.error("[AuthDiag] Fatal error during user profile handling:", error);
             await handleLogout();
-          }
-        } else {
-          console.log(`[AuthDiag] AppUser document not found for UID ${firebaseUser.uid}. Creating it...`);
-          const newUser: AppUser = {
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            displayName: firebaseUser.displayName || firebaseUser.email,
-            role: 'admin',
-            companyId: 'default', // Default company for new users
-            isActive: true,
-            createdAt: serverTimestamp() as any, // Cast for client-side representation
-          };
-
-          try {
-            await setDoc(userDocRef, newUser);
-            console.log("[AuthDiag] AppUser created");
-            // Set client-side user object immediately. createdAt will be a client-side object for now.
-            setAppUser({ ...newUser, createdAt: new Date() as any });
-            setUser(firebaseUser);
-          } catch (error) {
-            console.error("[AuthDiag] Error creating AppUser document:", error);
-            await handleLogout(); // Logout if we can't create the user profile
-          }
         }
+
       } else {
         console.log('[AuthDiag] Token changed. User is null.');
         setUser(null);
