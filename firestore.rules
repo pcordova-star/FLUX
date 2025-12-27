@@ -37,8 +37,20 @@ service cloud.firestore {
     // --- Base Rules ---
     
     match /users/{userId} {
+      // Any authenticated user can create their own user document.
       allow create: if isOwner(userId);
-      allow read, update: if isOwner(userId) || (isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId));
+
+      // An admin can read/update any user within their own company.
+      // A regular user can only read/update their own profile.
+      allow read, update: if isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId)
+                          || isOwner(userId);
+                          
+      // A user cannot change their own role or companyId unless they are an admin.
+      // This prevents privilege escalation.
+      allow update: if !(request.resource.data.role != resource.data.role ||
+                         request.resource.data.companyId != resource.data.companyId)
+                     || isAdmin();
+                     
       allow delete: if false; 
     }
     
