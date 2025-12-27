@@ -56,21 +56,48 @@ service cloud.firestore {
       // Super-admins can list all companies.
       allow list: if isSuperAdmin();
     }
+
+    // Orders collection
+    match /orders/{orderId} {
+      allow get: if isSameCompany(resource.data.companyId);
+      allow list: if request.query.companyId == getUserData().companyId;
+      allow create, update: if isAdmin() && isSameCompany(request.resource.data.companyId);
+      allow delete: if false;
+    }
+
+    // Inventory Balances
+    match /inventory_balances/{balanceId} {
+      allow get: if isSameCompany(resource.data.companyId);
+      allow list: if request.query.companyId == getUserData().companyId;
+      // Allow writes only if user is part of the company.
+      // This is secure because transactions run with user credentials.
+      allow write: if isAdmin() && isSameCompany(request.resource.data.companyId);
+      allow delete: if false;
+    }
+
+    // Inventory Ledger (Append-Only)
+    match /inventory_ledger/{ledgerId} {
+       allow get: if isSameCompany(resource.data.companyId);
+       allow list: if request.query.companyId == getUserData().companyId;
+       // Only allow creation of ledger entries.
+       allow create: if isAdmin() && isSameCompany(request.resource.data.companyId);
+       // Deny any modification or deletion to maintain immutability.
+       allow update, delete: if false;
+    }
     
-    // Generic rule for all company-scoped collections
+    // Generic rule for other company-scoped collections (less specific)
     match /{collection}/{docId} {
        // An admin can write to any resource within their own company.
-       allow write: if collection in ['clients', 'warehouses', 'products', 'inventory_balances', 'inventory_ledger', 'orders']
+       allow write: if collection in ['clients', 'warehouses', 'products']
                            && isAdmin()
                            && isSameCompany(request.resource.data.companyId); 
                            
        // Any authenticated user can read a single document belonging to their company.
-       allow get: if collection in ['clients', 'warehouses', 'products', 'inventory_balances', 'inventory_ledger', 'orders']
+       allow get: if collection in ['clients', 'warehouses', 'products']
                   && isSameCompany(resource.data.companyId);
 
        // Users can LIST resources ONLY if they are querying by their own companyId.
-       // This is the key rule for secure, multi-tenant list queries.
-       allow list: if collection in ['clients', 'warehouses', 'products', 'inventory_balances', 'inventory_ledger', 'orders']
+       allow list: if collection in ['clients', 'warehouses', 'products']
                    && request.query.companyId == getUserData().companyId;
     }
     
