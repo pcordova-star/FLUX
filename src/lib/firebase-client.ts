@@ -16,7 +16,23 @@ const firebaseConfig = {
 
 // Log to confirm config is being read correctly
 if (typeof window !== 'undefined') {
-  console.log("FB", firebaseConfig.projectId, firebaseConfig.authDomain, firebaseConfig.appId?.slice(0,10));
+  // This block will run only once in the browser.
+  if (!(window as any).__firebaseConfigLogged) {
+    console.log(
+      "[FirebaseDiag] Config:",
+      {
+        projectId: firebaseConfig.projectId,
+        authDomain: firebaseConfig.authDomain,
+        appId: firebaseConfig.appId?.slice(0,10) + '...',
+      }
+    );
+
+    if (!firebaseConfig.projectId || !firebaseConfig.authDomain || !firebaseConfig.appId) {
+        console.warn("[FirebaseDiag] ⚠️ One or more Firebase config values are undefined. Check your .env file.");
+    }
+    
+    (window as any).__firebaseConfigLogged = true;
+  }
 }
 
 // Initialize Firebase for SSR and SSG
@@ -25,36 +41,34 @@ let auth: Auth;
 let firestore: Firestore;
 let storage: Storage;
 
-if (typeof window !== 'undefined') {
-  if (getApps().length === 0) {
-      app = initializeApp(firebaseConfig);
-  } else {
-      app = getApp();
-  }
-
-  firestore = getFirestore(app);
-  auth = getAuth(app);
-  storage = getStorage(app);
-
-  try {
-    enableIndexedDbPersistence(firestore);
-  } catch (error: any) {
-    if (error.code === 'failed-precondition') {
-      // Multiple tabs open, persistence can only be enabled in one.
-    } else if (error.code === 'unimplemented') {
-      // The current browser does not support all of the
-      // features required to enable persistence
-    }
-  }
+if (getApps().length === 0) {
+    app = initializeApp(firebaseConfig);
 } else {
-    if (getApps().length === 0) {
-        app = initializeApp(firebaseConfig);
-    } else {
-        app = getApp();
+    app = getApp();
+}
+
+firestore = getFirestore(app);
+auth = getAuth(app);
+storage = getStorage(app);
+
+if (typeof window !== 'undefined') {
+  try {
+    // This will only be executed on the client
+    if (!(window as any).__firestorePersistenceEnabled) {
+      enableIndexedDbPersistence(firestore)
+        .then(() => console.log("[FirebaseDiag] Firestore persistence enabled."))
+        .catch((error: any) => {
+          if (error.code === 'failed-precondition') {
+            console.warn("[FirebaseDiag] Firestore persistence failed: multiple tabs open.");
+          } else if (error.code === 'unimplemented') {
+            console.warn("[FirebaseDiag] Firestore persistence not available in this browser.");
+          }
+        });
+      (window as any).__firestorePersistenceEnabled = true;
     }
-    firestore = getFirestore(app);
-    auth = getAuth(app);
-    storage = getStorage(app);
+  } catch (error: any) {
+     console.error("[FirebaseDiag] Error enabling persistence", error);
+  }
 }
 
 

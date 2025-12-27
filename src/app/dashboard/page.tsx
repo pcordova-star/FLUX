@@ -1,8 +1,36 @@
+'use client';
+
+import React, { useEffect } from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Package, ShoppingCart, Warehouse } from 'lucide-react';
+import { useFirebase } from '@/context/firebase-provider';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function DashboardPage() {
+  const { firestore } = useFirebase();
+
+  useEffect(() => {
+    const runHealthCheck = async () => {
+      if (!firestore) return;
+      try {
+        const healthCheckDoc = doc(firestore, "health", "ping");
+        await getDoc(healthCheckDoc);
+        console.log("%c[FirebaseDiag] Firestore ping successful!", "color: green");
+      } catch (error: any) {
+        console.error(
+          "%c[FirebaseDiag] Firestore ping failed.", "color: red",
+          {
+            code: error.code,
+            message: error.message,
+          }
+        );
+      }
+    };
+    runHealthCheck();
+  }, [firestore]);
+
+
   return (
     <AppLayout>
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
