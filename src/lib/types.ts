@@ -1,12 +1,8 @@
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
-export type UserRole = 
-  | 'super_admin'
-  | 'admin'
-  | 'supervisor'
-  | 'warehouse_operator'
-  | 'driver'
-  | 'client_viewer';
+export const USER_ROLES = ['super_admin', 'admin', 'operator', 'viewer'] as const;
+export type UserRole = typeof USER_ROLES[number];
+
 
 export interface AppUser {
   uid: string;
@@ -22,7 +18,7 @@ export interface AppUser {
 
 export interface Company {
   id: string;
-  name: string;
+  name:string;
   createdAt: Timestamp;
 }
 
