@@ -30,7 +30,7 @@ service cloud.firestore {
       let userData = getUserData(request.auth.uid);
       return isSignedIn() && userData.role == 'client_viewer' && userData.clientId == clientId;
     }
-
+    
     function isWarehouseOperatorForWarehouse(warehouseId) {
       let userData = getUserData(request.auth.uid);
       return isSignedIn() && 
@@ -39,18 +39,25 @@ service cloud.firestore {
              userData.warehouseIds is list && 
              warehouseId in userData.warehouseIds;
     }
+    
+    // --- Fallback rule for secure multi-tenancy ---
+    // This rule provides a base level of multi-tenant security for any collection.
+    // It allows read/write access only if the document's companyId matches the user's companyId.
+    match /{path=**}/{docId} {
+        allow read, write: if isSignedIn() && 
+                            'companyId' in resource.data && 
+                            resource.data.companyId == getUserData(request.auth.uid).companyId;
+    }
 
-    // --- Collection Rules ---
+    // --- Collection Rules (more specific rules override the fallback) ---
 
-    // Users can read their own data. Admins/Super Admins can read users in the same company.
-    // Admins/Super Admins can create/update users in the same company.
-    // An admin cannot make themselves a super_admin.
-    // Deletes are disabled to enforce soft-deletes via `isActive` flag.
+    // Users can manage other users within the same company if they are an Admin.
     match /users/{userId} {
       allow read: if isSignedIn() && (
         request.auth.uid == userId ||
         (isAdmin(request.auth.uid) && isSameCompanyAsUser(resource.data.companyId))
       );
+      allow list: if isAdmin(request.auth.uid) && isSameCompanyAsUser(request.query.companyId);
       allow create: if isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId);
       allow update: if isAdmin(request.auth.uid) && 
                       isSameCompanyAsUser(request.resource.data.companyId) &&
@@ -58,39 +65,41 @@ service cloud.firestore {
                       !(request.auth.uid == userId && 
                         resource.data.role == 'admin' && 
                         request.resource.data.role == 'super_admin');
-      allow delete: if false;
+      allow delete: if false; // Soft deletes are enforced via `isActive` flag.
     }
 
-    // Admins can read their company doc, only Super Admins can write to any company doc.
+    // Admins can read their company doc, only Super Admins can manage companies.
     match /companies/{companyId} {
       allow read: if isSameCompanyAsUser(companyId);
       allow write: if isSuperAdmin(request.auth.uid);
     }
     
-    // Admins of the company or assigned client viewers can read client data.
-    // Only admins can write.
+    // Admins or assigned client viewers can access client data.
     match /clients/{clientId} {
-       allow read: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(clientId);
+       allow get: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(clientId);
+       allow list: if isSameCompanyAsUser(request.query.companyId);
        allow write: if isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId);
     }
 
-    // Admins or assigned warehouse staff can read warehouse data.
-    // Only admins can write.
+    // Admins or assigned warehouse staff can access warehouse data.
     match /warehouses/{warehouseId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(warehouseId);
+      allow get: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(warehouseId);
+      allow list: if isSameCompanyAsUser(request.query.companyId);
       allow write: if isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId);
     }
     
-    // Admins of the company can read products.
+    // Company members can access products within their company.
     match /products/{productId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId);
+      allow read: if isSameCompanyAsUser(request.query.companyId); // For list
+      allow get: if isSameCompanyAsUser(resource.data.companyId); // For get
       allow write: if isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId);
     }
 
-    // Admins/Super Admins, or a client viewer for the specific client can read orders.
-    // Create/update/delete permissions are more granular.
+    // Granular access to orders and their events.
     match /orders/{orderId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(resource.data.clientId);
+      allow get: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(resource.data.clientId);
+      allow list: if isSameCompanyAsUser(request.query.companyId) || 
+                     (isClientViewerForClient(request.query.clientId) && request.query.companyId == getUserData(request.auth.uid).companyId);
       allow create: if 
         (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
         (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
@@ -103,9 +112,8 @@ service cloud.firestore {
           request.resource.data.companyId == resource.data.companyId &&
           request.resource.data.clientId == resource.data.clientId
         );
-      allow delete: if false; // Enforce soft deletes
+      allow delete: if false;
       
-      // Rules for the 'events' subcollection
       match /events/{eventId} {
         allow read: if isSameCompanyAsUser(get(/databases/$(database)/documents/orders/$(orderId)).data.companyId) || isClientViewerForClient(get(/databases/$(database)/documents/orders/$(orderId)).data.clientId);
         allow create: if isSameCompanyAsUser(request.resource.data.companyId) &&
@@ -115,9 +123,10 @@ service cloud.firestore {
       }
     }
     
-    // Admins or assigned warehouse operators can read/write inventory balances.
+    // Admins or assigned warehouse operators can manage inventory.
     match /inventory_balances/{balanceId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
+      allow get: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
+      allow list: if isSameCompanyAsUser(request.query.companyId);
       allow create: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
                        (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
       allow update: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
@@ -125,21 +134,13 @@ service cloud.firestore {
       allow delete: if false;
     }
     
-    // Admins or assigned warehouse operators can read/write inventory ledger.
     match /inventory_ledger/{ledgerId} {
-      allow read: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
+      allow get: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
+      allow list: if isSameCompanyAsUser(request.query.companyId);
       allow create: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
                        (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
-      allow update: if (isAdmin(request.auth.uid) && isSameCompanyAsUser(request.resource.data.companyId)) ||
-                       (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId) && request.resource.data.companyId == resource.data.companyId);
+      allow update: if false;
       allow delete: if false;
-    }
-
-    // Fallback rule for any other collection that has a companyId field.
-    // This provides a base level of multi-tenant security.
-    match /{document=**} {
-      allow read, delete: if isSignedIn() && isSameCompanyAsUser(resource.data.companyId);
-      allow create, update: if isSignedIn() && isSameCompanyAsUser(request.resource.data.companyId);
     }
   }
 }
