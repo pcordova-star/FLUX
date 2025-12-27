@@ -8,138 +8,81 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Cache user data for subsequent rule evaluations in the same request
-    function getUserData(userId) {
-      return get(/databases/$(database)/documents/users/$(userId)).data;
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    // --- Base Rules ---
+    
+    // Users can create, read, and update their OWN user document. No one else can.
+    match /users/{userId} {
+      allow create: if isOwner(userId);
+      allow read, update: if isOwner(userId);
+      allow delete: if false; // Soft deletes should be handled via an 'isActive' flag
+    }
+    
+    // Log for seeding actions. Should ideally be super-admin only, but let's keep it open for authed users for dev.
+    match /seed_log/{logId} {
+       allow read, create: if isSignedIn();
+    }
+    
+    // Health check document for diagnostics.
+    match /health/{docId} {
+       allow read: if isSignedIn();
+    }
+
+    // --- Business Logic Rules ---
+    // The rules below depend on the user's role and company, stored in /users/{uid}
+    
+    function getUserData() {
+      // It's more efficient to read the user's own data once per request.
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
 
     function isSuperAdmin() {
-      // Use let to avoid re-evaluation
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && userData.role == 'super_admin';
+      return isSignedIn() && getUserData().role == 'super_admin';
     }
 
     function isAdmin() {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && (userData.role == 'admin' || userData.role == 'super_admin');
+      let userRole = getUserData().role;
+      return isSignedIn() && (userRole == 'admin' || userRole == 'super_admin');
+    }
+    
+    function isSameCompany(companyId) {
+       return isSignedIn() && getUserData().companyId == companyId;
     }
 
-    function isSameCompanyAsUser(companyId) {
-      return isSignedIn() && getUserData(request.auth.uid).companyId == companyId;
-    }
-    
-    function isClientViewerForClient(clientId) {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && 
-             userData.role == 'client_viewer' && 
-             userData.clientId == clientId;
-    }
-    
-    function isWarehouseOperatorForWarehouse(warehouseId) {
-      let userData = getUserData(request.auth.uid);
-      return isSignedIn() && 
-             userData.role == 'warehouse_operator' && 
-             'warehouseIds' in userData &&
-             userData.warehouseIds is list && 
-             warehouseId in userData.warehouseIds;
-    }
-    
     // --- Collection Rules ---
 
-    // Users: Admins can manage users within their own company. Users can read their own profile.
-    match /users/{userId} {
-      allow get: if isSignedIn() && (
-        request.auth.uid == userId ||
-        (isAdmin() && isSameCompanyAsUser(resource.data.companyId))
-      );
-      allow list: if isAdmin() && isSameCompanyAsUser(request.query.companyId);
-      allow create: if isAdmin() && isSameCompanyAsUser(request.resource.data.companyId);
-      allow update: if isAdmin() && 
-                      isSameCompanyAsUser(request.resource.data.companyId) &&
-                      // Prevent an admin from promoting/demoting themselves or changing role to super_admin
-                      !(request.auth.uid == userId && request.resource.data.role != resource.data.role);
-      allow delete: if false; // Use `isActive` flag for soft deletes.
-    }
-
-    // Companies: Only Super Admins can manage companies. Admins can read their own company doc.
+    // Admins and super-admins can manage their own company's document.
     match /companies/{companyId} {
-      allow get: if isSameCompanyAsUser(companyId);
-      allow list: if isSuperAdmin(); // Super admins may need to list companies.
-      allow write: if isSuperAdmin();
+      allow read, write: if isAdmin() && isSameCompany(companyId);
+      // Super-admins might need to list all companies.
+      allow list: if isSuperAdmin();
     }
     
-    // Clients: Admins manage clients. Assigned client viewers can view their specific client.
-    match /clients/{clientId} {
-       allow get: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(clientId);
-       allow list: if isAdmin() && isSameCompanyAsUser(request.query.companyId);
-       allow write: if isAdmin() && isSameCompanyAsUser(request.resource.data.companyId);
-    }
+    // A generic rule for company-scoped resources.
+    // This can be applied to clients, warehouses, products, etc.
+    match /{collection}/{docId} {
+       // An admin can do anything within their own company.
+       allow read, write: if collection in ['clients', 'warehouses', 'products', 'inventory_balances', 'inventory_ledger', 'orders']
+                           && isAdmin()
+                           && isSameCompany(request.resource.data.companyId); // For writes
+                           
+       // Non-admins can read resources of their own company.
+       allow get: if collection in ['clients', 'warehouses', 'products', 'inventory_balances', 'inventory_ledger', 'orders']
+                  && isSameCompany(resource.data.companyId);
 
-    // Warehouses: Admins manage warehouses. Assigned operators can view their assigned warehouses.
-    match /warehouses/{warehouseId} {
-      allow get: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(warehouseId);
-      allow list: if isAdmin() && isSameCompanyAsUser(request.query.companyId);
-      allow write: if isAdmin() && isSameCompanyAsUser(request.resource.data.companyId);
+       // Users can list resources if they filter by their companyId.
+       allow list: if collection in ['clients', 'warehouses', 'products', 'inventory_balances', 'inventory_ledger', 'orders']
+                   && request.query.companyId == getUserData().companyId;
     }
     
-    // Products: Admins manage products. All company members can view them.
-    match /products/{productId} {
-      allow get: if isSameCompanyAsUser(resource.data.companyId);
-      allow list: if isSameCompanyAsUser(request.query.companyId); // Query must filter by companyId
-      allow write: if isAdmin() && isSameCompanyAsUser(request.resource.data.companyId);
-    }
-
-    // Orders: Granular access for different roles.
-    match /orders/{orderId} {
-      allow get: if isSameCompanyAsUser(resource.data.companyId) || isClientViewerForClient(resource.data.clientId);
-      allow list: if 
-        (isAdmin() && isSameCompanyAsUser(request.query.companyId)) ||
-        (isClientViewerForClient(request.query.clientId) && request.query.companyId == getUserData(request.auth.uid).companyId);
-      allow create: if 
-        (isAdmin() && isSameCompanyAsUser(request.resource.data.companyId)) ||
-        (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
-      allow update: if
-        (isAdmin() && isSameCompanyAsUser(request.resource.data.companyId)) ||
-        (
-          isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) &&
-          isSameCompanyAsUser(request.resource.data.companyId) &&
-          // Critical fields cannot be changed on update by operator
-          request.resource.data.companyId == resource.data.companyId &&
-          request.resource.data.clientId == resource.data.clientId
-        );
-      allow delete: if false;
-      
-      // Order Events: Inherit permissions from parent order.
-      match /events/{eventId} {
-        allow read: if isSameCompanyAsUser(get(/databases/$(database)/documents/orders/$(orderId)).data.companyId) || 
-                       isClientViewerForClient(get(/databases/$(database)/documents/orders/$(orderId)).data.clientId);
-        allow create: if 
-            isSameCompanyAsUser(request.resource.data.companyId) &&
-            (isAdmin() || isWarehouseOperatorForWarehouse(get(/databases/$(database)/documents/orders/$(orderId)).data.warehouseId)) &&
-            request.resource.data.companyId == get(/databases/$(database)/documents/orders/$(orderId)).data.companyId; // Ensure event companyId matches order companyId
-        allow update, delete: if false;
-      }
-    }
-    
-    // Inventory Balances & Ledger: Admins or assigned operators can manage.
-    match /inventory_balances/{balanceId} {
-      allow get: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
-      allow list: if (isAdmin() && isSameCompanyAsUser(request.query.companyId)) ||
-                     (isWarehouseOperatorForWarehouse(request.query.warehouseId) && request.query.companyId == getUserData(request.auth.uid).companyId);
-      allow create, update: if 
-        (isAdmin() && isSameCompanyAsUser(request.resource.data.companyId)) ||
-        (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
-      allow delete: if false;
-    }
-    
-    match /inventory_ledger/{ledgerId} {
-      allow get: if isSameCompanyAsUser(resource.data.companyId) || isWarehouseOperatorForWarehouse(resource.data.warehouseId);
-      allow list: if (isAdmin() && isSameCompanyAsUser(request.query.companyId)) ||
-                     (isWarehouseOperatorForWarehouse(request.query.warehouseId) && request.query.companyId == getUserData(request.auth.uid).companyId);
-      allow create: if 
-        (isAdmin() && isSameCompanyAsUser(request.resource.data.companyId)) ||
-        (isWarehouseOperatorForWarehouse(request.resource.data.warehouseId) && isSameCompanyAsUser(request.resource.data.companyId));
-      allow update, delete: if false;
+    // Special rules for order events.
+    match /orders/{orderId}/events/{eventId} {
+       allow read: if get(/databases/$(database)/documents/orders/$(orderId)).data.companyId == getUserData().companyId;
+       allow create: if request.resource.data.companyId == getUserData().companyId;
+       allow update, delete: if false;
     }
   }
 }
