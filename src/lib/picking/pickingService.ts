@@ -194,23 +194,26 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
           deltaQty: -item.qty,
           reservedDeltaQty: -item.qty,
           type: 'pick',
+          refType: 'order_pick',
           relatedOrderId: orderId,
           createdAt: serverTimestamp(),
           createdBy: userId,
         });
       }
 
-      // Update order status, only if it's not already 'picking'
-      if (order.status !== 'picking') {
-        transaction.update(orderRef, { status: 'picking' });
-      }
+      // Update order status and picking details
+      transaction.update(orderRef, { 
+        status: 'packed',
+        pickedAt: serverTimestamp(),
+        pickedBy: userId,
+       });
 
       // Add order event
       const eventRef = doc(collection(db, 'orders', orderId, 'events'));
       const newEvent: Omit<OrderEvent, 'id'> = {
         companyId: order.companyId,
-        type: 'picking',
-        message: 'Picking confirmado y completado.',
+        type: 'packed',
+        message: 'Picking confirmado y completado. Orden lista para despacho.',
         createdAt: serverTimestamp(),
         createdBy: userId,
       };

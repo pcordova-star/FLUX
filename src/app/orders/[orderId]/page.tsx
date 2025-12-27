@@ -18,7 +18,7 @@ import { doc, collection, query, orderBy } from 'firebase/firestore';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ORDER_STATUSES } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, PackageCheck, Package, ShoppingCart, Truck, CheckCircle, XCircle } from 'lucide-react';
+import { Loader2, PackageCheck, Package, ShoppingCart, Truck, CheckCircle, XCircle, PackageSearch, PackagePlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { can } from '@/lib/permissions';
@@ -26,12 +26,12 @@ import { can } from '@/lib/permissions';
 const statusIcons: Record<string, any> = {
   created: ShoppingCart,
   received: Package,
-  picking: Package,
+  picking: PackageSearch,
   packed: PackageCheck,
   shipped: Truck,
   delivered: CheckCircle,
   cancelled: XCircle,
-  info: Package,
+  info: PackagePlus,
   error: XCircle,
 };
 
@@ -156,7 +156,7 @@ export default function OrderDetailPage() {
           },
           user.uid
         );
-        toast({ title: 'Éxito', description: 'Picking confirmado correctamente.' });
+        toast({ title: 'Éxito', description: 'Picking confirmado correctamente. Orden lista para empaque.' });
       } catch (e: any) {
         toast({
           variant: 'destructive',
@@ -208,13 +208,13 @@ export default function OrderDetailPage() {
 
           {canPerformActions && (
             <div className="flex items-center space-x-2">
-              <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending}>
-                {isReserving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending} variant="outline">
+                {isReserving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackagePlus className="mr-2 h-4 w-4" />}
                 Reservar Stock
               </Button>
 
               <Button onClick={handleConfirmPick} disabled={!canConfirmPicking || isActionPending}>
-                {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {isConfirming ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <PackageSearch className="mr-2 h-4 w-4" />}
                 Confirmar Picking
               </Button>
 
@@ -244,7 +244,7 @@ export default function OrderDetailPage() {
           <Card>
             <CardHeader><CardTitle>Estado Actual</CardTitle></CardHeader>
             <CardContent>
-              <Badge variant={order.status === 'cancelled' ? 'destructive' : 'default'}>
+              <Badge variant={order.status === 'cancelled' || order.status === 'delivered' ? 'default' : 'secondary'}>
                 {order.status}
               </Badge>
             </CardContent>

@@ -66,6 +66,8 @@ export interface Order {
   createdAt: Timestamp;
   updatedAt: Timestamp;
   createdBy: string; // user uid
+  pickedAt?: Timestamp;
+  pickedBy?: string; // user uid
 }
 
 export type OrderEvent = {
