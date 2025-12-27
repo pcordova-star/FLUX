@@ -99,28 +99,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             {navItems.map((item) => (
               <SidebarMenuItem key={item.href}>
-                <Link href={item.href} legacyBehavior passHref>
-                  <SidebarMenuButton
-                    isActive={pathname.startsWith(item.href)}
-                    asChild
-                  >
+                <SidebarMenuButton
+                  isActive={pathname.startsWith(item.href)}
+                  asChild
+                >
+                  <Link href={item.href}>
                     <item.icon />
                     <span>{item.label}</span>
-                  </SidebarMenuButton>
-                </Link>
+                  </Link>
+                </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
             {role === 'super_admin' && (
               <SidebarMenuItem>
-                 <Link href="/admin/seed" legacyBehavior passHref>
-                  <SidebarMenuButton
+                 <SidebarMenuButton
                     isActive={pathname.startsWith('/admin')}
                     asChild
                   >
+                   <Link href="/admin/seed">
                     <ShieldCheck />
                     <span>Admin</span>
-                  </SidebarMenuButton>
-                 </Link>
+                   </Link>
+                 </SidebarMenuButton>
               </SidebarMenuItem>
             )}
           </SidebarMenu>
