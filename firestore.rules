@@ -77,13 +77,17 @@ service cloud.firestore {
       allow list: if request.query.companyId == getUserData().companyId;
       // Admins and Operators can create and update orders.
       allow create, update: if isOperator() && isSameCompany(request.resource.data.companyId);
+      // Only admins can delete orders.
       allow delete: if isAdmin() && isSameCompany(resource.data.companyId);
     }
     
     // Order events are append-only.
     match /orders/{orderId}/events/{eventId} {
+       // Any authenticated user of the company can read events.
        allow read: if get(/databases/$(database)/documents/orders/$(orderId)).data.companyId == getUserData().companyId;
+       // Operators and Admins can create events (e.g., by changing order status).
        allow create: if isOperator() && request.resource.data.companyId == getUserData().companyId;
+       // Events are immutable.
        allow update, delete: if false;
     }
     
@@ -100,11 +104,12 @@ service cloud.firestore {
 
     // Inventory Ledger is append-only for operators.
     match /inventory_ledger/{ledgerId} {
+       // Anyone in the company can read the ledger.
        allow get: if isSameCompany(resource.data.companyId);
        allow list: if request.query.companyId == getUserData().companyId;
-       // Only allow creation of ledger entries.
+       // Only operators and admins can create ledger entries (via transactions).
        allow create: if isOperator() && isSameCompany(request.resource.data.companyId);
-       // Deny any modification or deletion to maintain immutability.
+       // The ledger is immutable. Deny any modification or deletion.
        allow update, delete: if false;
     }
     
