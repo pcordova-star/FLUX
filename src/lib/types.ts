@@ -89,14 +89,18 @@ export interface InventoryBalance {
   warehouseId: string;
   clientId: string;
   sku: string;
-  qty: number;
-  reservedQty: number;
+  qty: number; // Stock físico disponible
+  reservedQty: number; // Unidades reservadas para pedidos salientes
   updatedAt: Timestamp | null;
-  updatedBy: string;
+  updatedBy: string; // user uid
 }
 
-export const INVENTORY_LEDGER_TYPES = ['inbound', 'reserve', 'pick'] as const;
+export const INVENTORY_LEDGER_TYPES = ['inbound', 'outbound', 'adjustment', 'reserve', 'pick'] as const;
 export type InventoryLedgerType = typeof INVENTORY_LEDGER_TYPES[number];
+
+export const INVENTORY_LEDGER_REF_TYPES = ['manual', 'order', 'purchase_order', 'return'] as const;
+export type InventoryLedgerRefType = typeof INVENTORY_LEDGER_REF_TYPES[number];
+
 
 export interface InventoryLedger {
   id: string;
@@ -104,14 +108,14 @@ export interface InventoryLedger {
   warehouseId:string;
   clientId: string;
   sku: string;
-  deltaQty: number;
-  reservedDeltaQty?: number;
+  deltaQty: number; // Cambio en el stock físico (+ para entrada, - para salida)
+  reservedDeltaQty?: number; // Cambio en el stock reservado (+ para reservar, - para liberar/picar)
   type: InventoryLedgerType;
-  refType?: 'manual' | 'po';
-  relatedOrderId?: string;
+  refType?: InventoryLedgerRefType;
+  relatedId?: string; // e.g., orderId, purchaseOrderId
   note?: string;
   createdAt: Timestamp | null;
-  createdBy: string;
+  createdBy: string; // user uid
 }
 
 
