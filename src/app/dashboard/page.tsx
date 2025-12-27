@@ -3,14 +3,14 @@
 import React from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { ShoppingCart, AlertTriangle, Truck, Repeat, Loader2 } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, Truck, Repeat } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
 import { useDocument } from 'react-firebase-hooks/firestore';
 import { doc } from 'firebase/firestore';
 import type { KpiSnapshot } from '@/lib/types';
 import TimeseriesChart from '@/components/dashboard/timeseries-chart';
-
+import { Skeleton } from '@/components/ui/skeleton';
 
 function KpiCard({ title, value, icon, description, loading }: { title: string, value: string | number, icon: React.ReactNode, description: string, loading: boolean }) {
   return (
@@ -21,7 +21,10 @@ function KpiCard({ title, value, icon, description, loading }: { title: string, 
       </CardHeader>
       <CardContent>
         {loading ? (
-            <div className="h-8 w-24 rounded-md bg-muted animate-pulse" />
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-24 rounded-md" />
+            <Skeleton className="h-4 w-32 rounded-md" />
+          </div>
         ) : (
           <>
             <div className="text-2xl font-bold">{value}</div>
@@ -74,21 +77,21 @@ export default function DashboardPage() {
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <KpiCard
             title="Órdenes en Curso"
-            value={kpis?.ordersInProgress ?? '...'}
+            value={loading ? '...' : (kpis?.ordersInProgress ?? 0)}
             icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
             description="Picking, packed, etc."
             loading={loading}
           />
           <KpiCard
             title="Órdenes Atrasadas"
-            value={kpis?.ordersDelayed ?? '...'}
+            value={loading ? '...' : (kpis?.ordersDelayed ?? 0)}
             icon={<Truck className="h-4 w-4 text-muted-foreground" />}
             description="Incumplen fecha promesa"
             loading={loading}
           />
           <KpiCard
             title="Stock Crítico"
-            value={kpis?.criticalStockItems ?? '...'}
+            value={loading ? '...' : (kpis?.criticalStockItems ?? 0)}
             icon={<AlertTriangle className="h-4 w-4 text-muted-foreground" />}
             description="SKUs con stock cero"
             loading={loading}
