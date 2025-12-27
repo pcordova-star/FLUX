@@ -53,7 +53,7 @@ const StepContent = ({ step }: { step: number }) => {
     return (
       <div className="space-y-4">
         <div>
-          <label htmlFor="warehouseName" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Almacén</label>
+          <label htmlFor="warehouseName" className="block text-sm font-medium text-gray-700 mb-1">Nombre de tu Almacén Principal</label>
           <Input {...register('warehouseName')} id="warehouseName" placeholder="Ej: Bodega Central" />
           {errors.warehouseName && <p className="mt-2 text-sm text-red-600">{`${errors.warehouseName.message}`}</p>}
         </div>
@@ -200,6 +200,7 @@ export default function FirstRunPage() {
               name: values.warehouseName, 
               location: values.warehouseLocation || '',
               companyId: companyId,
+              isActive: true,
               createdAt: serverTimestamp(),
           });
           
@@ -216,7 +217,7 @@ export default function FirstRunPage() {
           
           // 4. Create initial inventory if stock > 0
           if (values.initialStock > 0) {
-              const balanceId = `${companyId}_${warehouseId}_${values.productSku.toLowerCase()}`;
+              const balanceId = `${companyId}_${warehouseId}_default_${values.productSku.toLowerCase()}`;
               const balanceRef = doc(firestore, 'inventory_balances', balanceId);
               batch.set(balanceRef, {
                   companyId,

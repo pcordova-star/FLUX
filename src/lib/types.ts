@@ -32,6 +32,8 @@ export interface Warehouse {
   id: string;
   name: string;
   companyId: string;
+  location?: string;
+  isActive: boolean;
   createdAt: Timestamp;
 }
 
