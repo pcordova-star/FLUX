@@ -3,7 +3,7 @@
 import React from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { ShoppingCart, AlertTriangle, Truck, Repeat, Loader2, ArrowUp, ArrowDown, Activity } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, Truck, Repeat, Loader2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
 import { useDocument } from 'react-firebase-hooks/firestore';
@@ -22,10 +22,10 @@ function KpiCard({ title, value, icon, description, loading }: { title: string, 
       </CardHeader>
       <CardContent>
         {loading ? (
-          <>
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-4 w-32 mt-1" />
-          </>
+          <div className="space-y-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-4 w-3/4" />
+          </div>
         ) : (
           <>
             <div className="text-2xl font-bold">{value}</div>
@@ -53,7 +53,7 @@ const movementsData = [
   { date: '2024-05-02', value: 210 },
   { date: '2024-05-03', value: 180 },
   { date: '2024-05-04', value: 250 },
-  { date: '2024-05-05', value fleeing: 190 },
+  { date: '2024-05-05', value: 190 },
   { date: '2024-05-06', value: 300 },
   { date: '2024-05-07', value: 280 },
 ];
@@ -131,10 +131,9 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {loading && (
-                <div className="flex justify-center p-8">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <p className="ml-2">Cargando datos del dashboard...</p>
+            {loading && !kpis && (
+                <div className="text-center py-10 text-muted-foreground">
+                    <p>Cargando datos del dashboard...</p>
                 </div>
             )}
             {!loading && !error && !kpis && (
