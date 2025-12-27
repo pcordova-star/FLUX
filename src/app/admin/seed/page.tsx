@@ -41,7 +41,7 @@ export default function SeedPage() {
           <CardHeader>
             <CardTitle>Inicializar Base de Datos (Demo)</CardTitle>
             <CardDescription>
-              Puebla la base de datos con un conjunto de datos de demostración inteligentes.
+              Hemos cargado datos de ejemplo para que veas cómo funciona el sistema. Puedes eliminarlos cuando quieras.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

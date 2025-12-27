@@ -62,8 +62,8 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
       }, user.uid);
 
       toast({
-        title: 'Éxito',
-        description: 'El stock ha sido recibido correctamente.',
+        title: 'Stock Recibido Correctamente',
+        description: `${values.qty} unidades de ${values.sku} añadidas al inventario.`,
       });
       form.reset();
       onOpenChange(false);
@@ -83,7 +83,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Recibir Stock</DialogTitle>
-          <DialogDescription>Registra una entrada de inventario manual.</DialogDescription>
+          <DialogDescription>Registra una entrada de inventario manual. Esto aumentará el stock disponible.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
@@ -105,7 +105,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
               name="qty"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Cantidad</FormLabel>
+                  <FormLabel>Cantidad a Recibir</FormLabel>
                    <FormControl>
                     <Input type="number" placeholder="100" {...field} />
                   </FormControl>
@@ -118,7 +118,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
               name="warehouseId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ID de Almacén</FormLabel>
+                  <FormLabel>ID de Almacén de Destino</FormLabel>
                    <FormControl>
                     <Input placeholder="wh_scl_01" {...field} />
                   </FormControl>
@@ -131,7 +131,7 @@ export function ReceiveStockDialog({ isOpen, onOpenChange }: ReceiveStockDialogP
               name="clientId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ID de Cliente</FormLabel>
+                  <FormLabel>ID de Cliente (Dueño del stock)</FormLabel>
                    <FormControl>
                     <Input placeholder="client_klog_001" {...field} />
                   </FormControl>

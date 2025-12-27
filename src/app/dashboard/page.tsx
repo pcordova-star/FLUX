@@ -140,7 +140,7 @@ export default function DashboardPage() {
             )}
             {!loading && !error && !kpis && (
                 <p className="text-muted-foreground">
-                    Aún no hay datos de KPI para mostrar. Comienza a operar para ver las métricas aquí.
+                    Aún no hay actividad real. Comienza creando tu primera orden para ver las métricas aquí.
                 </p>
             )}
              {!loading && !error && kpis && (

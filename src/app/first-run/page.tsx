@@ -105,17 +105,24 @@ const StepContent = ({ step }: { step: number }) => {
 };
 
 const stepTitles = [
-  'Bienvenido a FLUX. Empecemos por tu empresa.',
-  'Tu primer centro de operaciones',
-  'Crea un producto para empezar a operar',
+  'Configura tu operación en minutos',
+  'Define tu primer almacén',
+  'Agrega tu primer producto',
   '¡Todo listo para empezar!'
 ];
 
 const stepDescriptions = [
-  'Danos el nombre de tu empresa para personalizar tu espacio de trabajo.',
-  'Cada movimiento de inventario ocurre en un almacén. Define el principal.',
-  'Necesitas al menos un producto para crear tu primera orden o recibir stock.',
+  'Esto nos permite adaptar el sistema a tu negocio.',
+  'Desde aquí se controla el stock y los despachos.',
+  'El stock inicial se calculará automáticamente.',
   'Revisa la configuración. Todo estará listo para que explores la plataforma.'
+];
+
+const stepCtas = [
+  'Continuar',
+  'Crear almacén',
+  'Crear producto',
+  'Finalizar e ir al Dashboard',
 ];
 
 export default function FirstRunPage() {
@@ -321,10 +328,10 @@ export default function FirstRunPage() {
                   {isFinalStep ? (
                     <Button onClick={handleFinish} disabled={isFinishing} size="lg">
                         {isFinishing ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Finalizar e ir al Dashboard
+                        {stepCtas[step]}
                     </Button>
                   ) : (
-                    <Button onClick={handleNext}>Continuar</Button>
+                    <Button onClick={handleNext}>{stepCtas[step]}</Button>
                   )}
                 </div>
             </CardFooter>

@@ -51,7 +51,7 @@ export function CreateProductDialog({ isOpen, onOpenChange }: CreateProductDialo
     setIsLoading(true);
     try {
       await createProduct(firestore, { ...values, companyId });
-      toast({ title: 'Éxito', description: 'Producto creado correctamente.' });
+      toast({ title: 'Producto Creado', description: `El producto ${values.name} ha sido añadido al catálogo.` });
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
@@ -66,7 +66,7 @@ export function CreateProductDialog({ isOpen, onOpenChange }: CreateProductDialo
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Crear Nuevo Producto</DialogTitle>
-          <DialogDescription>Añade un nuevo producto a tu catálogo.</DialogDescription>
+          <DialogDescription>Añade un nuevo producto a tu catálogo. Podrás asignarle stock más adelante.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">

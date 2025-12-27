@@ -56,6 +56,8 @@ export function ActivationChecklist() {
 
   useEffect(() => {
     if (checklistData?.completed) {
+      // If completed, we can show a toast or a one-time celebration message
+      // For now, just dismiss it permanently
       handleDismiss();
     }
   }, [checklistData?.completed]);
@@ -70,9 +72,31 @@ export function ActivationChecklist() {
 
 
   if (completedSteps === totalSteps && !checklistData.completed) {
-     if(checklistRef) updateDoc(checklistRef, { completed: true });
+     if(checklistRef) {
+        updateDoc(checklistRef, { completed: true });
+        // Optionally show a toast message for completion
+     }
      return null;
   }
+  
+  if (progress === 100) {
+      return (
+        <Card className="mb-6 relative bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+             <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={handleDismiss}>
+                <X className="h-4 w-4" />
+                <span className="sr-only">Cerrar</span>
+            </Button>
+            <CardHeader>
+                <div className="flex items-center gap-3">
+                    <CheckCircle2 className="h-6 w-6 text-green-600"/>
+                    <CardTitle className="text-green-900 dark:text-green-100">¡Tu operación ya está activa!</CardTitle>
+                </div>
+                 <CardDescription className="text-green-700 dark:text-green-300">Has completado los primeros pasos. Ahora el sistema trabaja para ti.</CardDescription>
+            </CardHeader>
+        </Card>
+      )
+  }
+
 
   return (
     <Card className="mb-6 relative">
@@ -83,12 +107,12 @@ export function ActivationChecklist() {
       <CardHeader>
         <div className="flex items-center gap-2">
             <Rocket className="h-5 w-5 text-primary"/>
-            <CardTitle>¡Activa tu cuenta! Completa tus primeros pasos</CardTitle>
+            <CardTitle>Primeros pasos para activar tu cuenta</CardTitle>
         </div>
         <CardDescription>Sigue esta guía para realizar tus primeras operaciones y ver FLUX en acción.</CardDescription>
         <div className="flex items-center gap-4 pt-2">
             <Progress value={progress} className="w-full" />
-            <span className="text-sm font-medium text-muted-foreground">{completedSteps} / {totalSteps}</span>
+            <span className="text-sm font-medium text-muted-foreground">{completedSteps} / {totalSteps} completado</span>
         </div>
       </CardHeader>
       <CardContent>

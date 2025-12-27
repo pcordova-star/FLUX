@@ -85,8 +85,8 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
       }, user.uid);
 
       toast({
-        title: 'Éxito',
-        description: 'La orden ha sido creada correctamente.',
+        title: 'Orden Creada Correctamente',
+        description: `La orden #${values.orderNumber} ha sido registrada.`,
       });
       form.reset();
        onOpenChange(false);
@@ -120,7 +120,7 @@ export function CreateOrderDialog({ isOpen, onOpenChange }: CreateOrderDialogPro
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Crear Nueva Orden</DialogTitle>
-          <DialogDescription>Completa los detalles para crear una nueva orden.</DialogDescription>
+          <DialogDescription>Completa los detalles para registrar una nueva orden de salida.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4 max-h-[80vh] overflow-y-auto pr-2">
