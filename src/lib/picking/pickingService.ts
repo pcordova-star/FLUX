@@ -9,6 +9,8 @@ import {
   type Firestore,
 } from 'firebase/firestore';
 import type { Order, OrderEvent } from '@/lib/types';
+import { sanitizeDocId } from '@/lib/utils';
+
 
 interface PickingOperationInput {
   companyId: string;
@@ -16,19 +18,6 @@ interface PickingOperationInput {
   clientId: string;
   orderId: string;
 }
-
-/**
- * Sanitizes a string to be used as a Firestore document ID.
- * Trims, lowercases, and replaces spaces and common URL/path characters with underscores.
- */
-function sanitizeDocId(id: string): string {
-    return id
-        .trim()
-        .toLowerCase()
-        .replace(/\s+/g, '_') // Replace one or more spaces with a single underscore
-        .replace(/[\/?#%\[\]&=+:@!$'()*;,.~]/g, '_'); // Replace common special characters with an underscore
-}
-
 
 /**
  * Reserves stock for a given order. This transaction will:
