@@ -6,6 +6,7 @@ import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import type { AppUser, UserRole } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
 import { useFirebase } from './firebase-provider';
+import { useRouter } from 'next/navigation';
 
 export interface AuthContextType {
   user: User | null;
@@ -35,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const { auth, firestore } = useFirebase();
+  const router = useRouter();
   const [user, setUser] = useState<User | null>(null);
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,6 +71,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
               if (fetchedAppUser.isActive) {
                 setUser(firebaseUser);
                 setAppUser(fetchedAppUser);
+                 // Onboarding check
+                if (typeof window !== 'undefined') {
+                    const onboardingComplete = localStorage.getItem('onboardingComplete');
+                    if (onboardingComplete !== 'true') {
+                        // Forcing redirect to first-run page.
+                        // Check if we are not already there to avoid loops.
+                        if (window.location.pathname !== '/first-run') {
+                            router.replace('/first-run');
+                        }
+                    }
+                }
+
               } else {
                 console.warn(`[AuthDiag] User ${firebaseUser.uid} is inactive. Forcing logout.`);
                 await handleLogout();
@@ -91,12 +105,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
               console.log("[AuthDiag] AppUser created successfully.");
               
-              // We refetch the document to get the server-generated timestamp
               const newUserSnap = await getDoc(userDocRef);
               if (newUserSnap.exists()) {
                 const createdAppUser = newUserSnap.data() as AppUser;
                 setAppUser(createdAppUser);
                 setUser(firebaseUser);
+                 if (typeof window !== 'undefined' && window.location.pathname !== '/first-run') {
+                    router.replace('/first-run');
+                 }
               } else {
                  throw new Error("Failed to fetch newly created user profile.");
               }
@@ -118,7 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.log('[AuthDiag] Unsubscribing from onIdTokenChanged.');
       unsubscribe();
     };
-  }, [auth, firestore, handleLogout]);
+  }, [auth, firestore, handleLogout, router]);
 
   const login = async (email: string, pass: string) => {
     if (!auth) {
@@ -127,7 +143,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     console.log(`[AuthDiag] Attempting login for ${email}`);
     await signInWithEmailAndPassword(auth, email, pass);
-    // onIdTokenChanged will handle the rest
   };
 
   const contextValue: AuthContextType = {

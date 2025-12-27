@@ -10,12 +10,19 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.replace('/dashboard');
-      } else {
+    if (loading) return;
+
+    if (user) {
+        if (typeof window !== 'undefined') {
+            const onboardingComplete = localStorage.getItem('onboardingComplete');
+            if (onboardingComplete === 'true') {
+                router.replace('/dashboard');
+            } else {
+                router.replace('/first-run');
+            }
+        }
+    } else {
         router.replace('/login');
-      }
     }
   }, [user, loading, router]);
 
