@@ -112,7 +112,7 @@ export interface InventoryLedger {
   reservedDeltaQty?: number; // Cambio en el stock reservado (+ para reservar, - para liberar/picar)
   type: InventoryLedgerType;
   refType?: InventoryLedgerRefType;
-  relatedId?: string; // e.g., orderId, purchaseOrderId
+  relatedOrderId?: string;
   note?: string;
   createdAt: Timestamp | null;
   createdBy: string; // user uid

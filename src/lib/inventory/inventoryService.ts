@@ -45,16 +45,16 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
   try {
     await runTransaction(db, async (transaction) => {
       const balanceDoc = await transaction.get(balanceRef);
-      const currentQty = balanceDoc.exists() ? balanceDoc.data().qty : 0;
-
+      
       if (!balanceDoc.exists()) {
         // If balance doesn't exist, create it.
         transaction.set(balanceRef, {
           companyId,
           warehouseId,
           clientId,
-          sku,
+          sku: sku.trim().toLowerCase(),
           qty: qty, // Set initial quantity
+          reservedQty: 0,
           updatedAt: serverTimestamp(),
           updatedBy: userId,
         });
@@ -72,7 +72,7 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
         companyId,
         warehouseId,
         clientId,
-        sku,
+        sku: sku.trim().toLowerCase(),
         deltaQty: qty, // Positive for inbound
         type: 'inbound',
         refType: 'manual',
@@ -81,8 +81,9 @@ export async function receiveStock(db: Firestore, input: ReceiveStockInput, user
         createdBy: userId,
       });
     });
+    console.log('[Inventory] Movement registered successfully.');
   } catch (error) {
     console.error("Error en la transacción de recepción de stock:", error);
-    throw new Error("La operación falló. Por favor, inténtalo de nuevo.");
+    throw new Error("La operación de recepción de stock falló. Por favor, inténtalo de nuevo.");
   }
 }

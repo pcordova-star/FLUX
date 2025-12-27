@@ -60,7 +60,7 @@ export async function reserveForOrder(db: Firestore, input: PickingOperationInpu
 
       // Check availability and prepare updates
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const balanceDoc = await transaction.get(balanceRef);
 
@@ -79,7 +79,7 @@ export async function reserveForOrder(db: Firestore, input: PickingOperationInpu
 
       // If all checks pass, perform the updates
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const ledgerRef = doc(collection(db, 'inventory_ledger'));
 
@@ -96,7 +96,7 @@ export async function reserveForOrder(db: Firestore, input: PickingOperationInpu
           warehouseId,
           clientId,
           sku: item.sku,
-          deltaQty: 0,
+          reservedDeltaQty: item.qty,
           type: 'reserve',
           relatedOrderId: orderId,
           createdAt: serverTimestamp(),
@@ -115,6 +115,7 @@ export async function reserveForOrder(db: Firestore, input: PickingOperationInpu
       };
       transaction.set(eventRef, newEvent);
     });
+    console.log('[Inventory] Stock reservation registered successfully.');
   } catch (error: any) {
     console.error("Error en la transacción de reserva de stock:", error);
     throw new Error(error.message || "La operación de reserva falló.");
@@ -152,7 +153,7 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
 
       // Check if there is enough reservation and stock
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const balanceDoc = await transaction.get(balanceRef);
         
@@ -174,7 +175,7 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
 
       // If all checks pass, perform updates
       for (const item of order.items) {
-        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku}`);
+        const balanceId = sanitizeDocId(`${companyId}_${warehouseId}_${clientId}_${item.sku.trim().toLowerCase()}`);
         const balanceRef = doc(db, 'inventory_balances', balanceId);
         const ledgerRef = doc(collection(db, 'inventory_ledger'));
 
@@ -191,8 +192,9 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
           companyId,
           warehouseId,
           clientId,
-          sku: item.sku,
+          sku: item.sku.trim().toLowerCase(),
           deltaQty: -item.qty,
+          reservedDeltaQty: -item.qty,
           type: 'pick',
           relatedOrderId: orderId,
           createdAt: serverTimestamp(),
@@ -216,6 +218,7 @@ export async function confirmPick(db: Firestore, input: PickingOperationInput, u
       };
       transaction.set(eventRef, newEvent);
     });
+     console.log('[Inventory] Pick confirmation registered successfully.');
   } catch (error: any) {
     console.error("Error en la transacción de confirmación de picking:", error);
     throw new Error(error.message || "La operación de confirmación de picking falló.");
