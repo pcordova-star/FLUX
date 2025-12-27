@@ -40,16 +40,18 @@ service cloud.firestore {
       // Any authenticated user can create their own user document.
       allow create: if isOwner(userId);
 
-      // An admin can read/update any user within their own company.
-      // A regular user can only read/update their own profile.
-      allow read, update: if isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId)
-                          || isOwner(userId);
+      // An admin can read any user within their own company.
+      // A regular user can only read their own profile.
+      allow read: if isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId)
+                  || isOwner(userId);
                           
-      // A user cannot change their own role or companyId unless they are an admin.
-      // This prevents privilege escalation.
-      allow update: if !(request.resource.data.role != resource.data.role ||
-                         request.resource.data.companyId != resource.data.companyId)
-                     || isAdmin();
+      // A user can update their own profile, but CANNOT change their role or companyId.
+      // An admin can update any user in their company, including changing their role.
+      allow update: if isOwner(userId) && 
+                      !(request.resource.data.role != resource.data.role ||
+                        request.resource.data.companyId != resource.data.companyId)
+                    ||
+                    (isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId));
                      
       allow delete: if false; 
     }
@@ -96,8 +98,7 @@ service cloud.firestore {
       // Anyone in the company can read inventory balances.
       allow get: if isSameCompany(resource.data.companyId);
       allow list: if request.query.companyId == getUserData().companyId;
-      // Writes are only allowed for operators/admins within a transaction.
-      // This is secure because the client-side services execute transactions with user credentials.
+      // Writes are only allowed for admins/operators (via transactions).
       allow write: if isOperator() && isSameCompany(request.resource.data.companyId);
       allow delete: if false; // Deny direct deletions.
     }
@@ -105,8 +106,7 @@ service cloud.firestore {
     // Inventory Ledger is append-only for operators.
     match /inventory_ledger/{ledgerId} {
        // Anyone in the company can read the ledger.
-       allow get: if isSameCompany(resource.data.companyId);
-       allow list: if request.query.companyId == getUserData().companyId;
+       allow get, list: if isSameCompany(resource.data.companyId);
        // Only operators and admins can create ledger entries (via transactions).
        allow create: if isOperator() && isSameCompany(request.resource.data.companyId);
        // The ledger is immutable. Deny any modification or deletion.
