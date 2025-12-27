@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm, FormProvider } from 'react-hook-form';
+import { useForm, FormProvider, useFormContext } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
@@ -11,9 +11,10 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
-import { doc, writeBatch } from 'firebase/firestore';
+import { doc, writeBatch, serverTimestamp, getDoc, setDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 const companySchema = z.object({
   companyName: z.string().min(3, 'El nombre de la empresa debe tener al menos 3 caracteres.'),
@@ -41,8 +42,8 @@ const StepContent = ({ step }: { step: number }) => {
     return (
       <div className="space-y-4">
         <div>
-          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700">Nombre de la Empresa</label>
-          <input {...register('companyName')} id="companyName" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Empresa</label>
+          <Input {...register('companyName')} id="companyName" placeholder="Tu Empresa S.A." />
           {errors.companyName && <p className="mt-2 text-sm text-red-600">{`${errors.companyName.message}`}</p>}
         </div>
       </div>
@@ -52,13 +53,13 @@ const StepContent = ({ step }: { step: number }) => {
     return (
       <div className="space-y-4">
         <div>
-          <label htmlFor="warehouseName" className="block text-sm font-medium text-gray-700">Nombre del Almacén</label>
-          <input {...register('warehouseName')} id="warehouseName" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+          <label htmlFor="warehouseName" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Almacén</label>
+          <Input {...register('warehouseName')} id="warehouseName" placeholder="Bodega Principal" />
           {errors.warehouseName && <p className="mt-2 text-sm text-red-600">{`${errors.warehouseName.message}`}</p>}
         </div>
         <div>
-          <label htmlFor="warehouseLocation" className="block text-sm font-medium text-gray-700">Ubicación (Opcional)</label>
-          <input {...register('warehouseLocation')} id="warehouseLocation" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+          <label htmlFor="warehouseLocation" className="block text-sm font-medium text-gray-700 mb-1">Ubicación (Opcional)</label>
+          <Input {...register('warehouseLocation')} id="warehouseLocation" placeholder="Santiago, Chile" />
         </div>
       </div>
     );
@@ -67,18 +68,18 @@ const StepContent = ({ step }: { step: number }) => {
     return (
       <div className="space-y-4">
         <div>
-          <label htmlFor="productName" className="block text-sm font-medium text-gray-700">Nombre del Producto</label>
-          <input {...register('productName')} id="productName" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+          <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto</label>
+          <Input {...register('productName')} id="productName" placeholder="Laptop Pro" />
           {errors.productName && <p className="mt-2 text-sm text-red-600">{`${errors.productName.message}`}</p>}
         </div>
         <div>
-          <label htmlFor="productSku" className="block text-sm font-medium text-gray-700">SKU</label>
-          <input {...register('productSku')} id="productSku" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+          <label htmlFor="productSku" className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
+          <Input {...register('productSku')} id="productSku" placeholder="LP-001" />
           {errors.productSku && <p className="mt-2 text-sm text-red-600">{`${errors.productSku.message}`}</p>}
         </div>
         <div>
-          <label htmlFor="initialStock" className="block text-sm font-medium text-gray-700">Stock Inicial</label>
-          <input {...register('initialStock')} id="initialStock" type="number" className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-primary focus:ring-primary sm:text-sm" />
+          <label htmlFor="initialStock" className="block text-sm font-medium text-gray-700 mb-1">Stock Inicial</label>
+          <Input {...register('initialStock')} id="initialStock" type="number" placeholder="100" />
           {errors.initialStock && <p className="mt-2 text-sm text-red-600">{`${errors.initialStock.message}`}</p>}
         </div>
       </div>
@@ -127,26 +128,15 @@ export default function FirstRunPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
 
-  // Zod schema for validation of all steps at once
-  const fullSchema = companySchema.merge(warehouseSchema).merge(productSchema);
-
   const methods = useForm<FormValues>({
     resolver: async (data, context, options) => {
         const currentSchema = stepSchemas[step] || companySchema;
         return zodResolver(currentSchema)(data, context, options);
     },
-    shouldFocusError: false,
+    shouldFocusError: true,
   });
 
   useEffect(() => {
-    // Redirect if user is not logged in or onboarding is complete
-    if (typeof window !== 'undefined') {
-      const onboardingComplete = localStorage.getItem('onboardingComplete');
-      if (onboardingComplete === 'true') {
-        router.replace('/dashboard');
-        return;
-      }
-    }
     if (!authLoading && !user) {
       router.replace('/login');
     }
@@ -155,7 +145,7 @@ export default function FirstRunPage() {
   const handleNext = async () => {
     const isValid = await methods.trigger();
     if (isValid) {
-      setStep(prev => Math.min(prev + 1, 4));
+      setStep(prev => Math.min(prev + 1, 3));
     }
   };
 
@@ -170,7 +160,7 @@ export default function FirstRunPage() {
     }
     toast({
         title: 'Configuración omitida',
-        description: 'Puedes configurar tu empresa más tarde.',
+        description: 'Puedes configurar tu empresa más tarde desde los ajustes.',
     });
     router.push('/dashboard');
   };
@@ -187,18 +177,21 @@ export default function FirstRunPage() {
     try {
         const batch = writeBatch(firestore);
 
-        // 1. Update company
+        // 1. Update company if it's the default one
         const companyRef = doc(firestore, 'companies', companyId);
-        batch.update(companyRef, { name: values.companyName });
+        const companySnap = await getDoc(companyRef);
+        if (companySnap.exists() && companySnap.data().name.includes('Default')) {
+            batch.update(companyRef, { name: values.companyName });
+        }
 
         // 2. Create Warehouse
         const warehouseId = values.warehouseName.toLowerCase().replace(/\s+/g, '_');
         const warehouseRef = doc(firestore, 'warehouses', warehouseId);
         batch.set(warehouseRef, { 
             name: values.warehouseName, 
-            location: values.warehouseLocation,
+            location: values.warehouseLocation || '',
             companyId: companyId,
-            createdAt: new Date(),
+            createdAt: serverTimestamp(),
         });
         
         // 3. Create Product
@@ -207,23 +200,56 @@ export default function FirstRunPage() {
             name: values.productName,
             sku: values.productSku,
             companyId: companyId,
-            createdAt: new Date(),
+            createdAt: serverTimestamp(),
+            description: '',
+            price: 0
         });
         
         // 4. Create initial inventory if stock > 0
+        const clientId = appUser.clientId || 'default';
         if (values.initialStock > 0) {
-            const balanceId = `${companyId}_${warehouseId}_${appUser.clientId || 'default'}_${values.productSku.toLowerCase()}`;
+            const balanceId = `${companyId}_${warehouseId}_${clientId}_${values.productSku.toLowerCase()}`;
             const balanceRef = doc(firestore, 'inventory_balances', balanceId);
             batch.set(balanceRef, {
                 companyId,
                 warehouseId,
-                clientId: appUser.clientId || 'default',
+                clientId,
                 sku: values.productSku,
                 qty: values.initialStock,
                 reservedQty: 0,
-                updatedAt: new Date(),
+                updatedAt: serverTimestamp(),
+            });
+
+            // Create ledger entry
+            const ledgerRef = doc(firestore.collection('inventory_ledger'));
+            batch.set(ledgerRef, {
+                companyId,
+                warehouseId,
+                clientId,
+                sku: values.productSku,
+                deltaQty: values.initialStock,
+                type: 'inbound',
+                refType: 'manual',
+                note: 'Stock inicial del onboarding',
+                createdAt: serverTimestamp(),
+                createdBy: appUser.uid
             });
         }
+        
+        // 5. Update user profile to link to the new warehouse
+        const userRef = doc(firestore, 'users', appUser.uid);
+        batch.update(userRef, { warehouseIds: [warehouseId] });
+
+        // 6. Set initial KPI snapshot
+        const kpiRef = doc(firestore, 'kpi_snapshots', companyId);
+        batch.set(kpiRef, {
+            criticalStockItems: values.initialStock > 0 ? 0 : 1,
+            ordersToday: 0,
+            ordersInProgress: 0,
+            ordersDelayed: 0,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+
 
         await batch.commit();
 
@@ -257,10 +283,10 @@ export default function FirstRunPage() {
   }
 
   const isFinalStep = step === 3;
-  const progress = ((step) / (stepTitles.length -1)) * 100;
+  const progress = ((step + 1) / stepTitles.length) * 100;
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-100 dark:bg-black p-4">
       <Card className="w-full max-w-lg">
         <CardHeader>
           <Progress value={progress} className="mb-4 h-2" />
@@ -268,27 +294,29 @@ export default function FirstRunPage() {
           <CardDescription>{stepDescriptions[step]}</CardDescription>
         </CardHeader>
         <FormProvider {...methods}>
-          <CardContent>
-            <StepContent step={step} />
-          </CardContent>
-        </FormProvider>
-        <CardFooter className="flex justify-between">
-            <Button variant="ghost" onClick={handleSkip} disabled={isLoading || isSkipping}>
-              {isSkipping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Omitir por ahora
-            </Button>
-            <div className="flex gap-2">
-              {step > 0 && <Button variant="outline" onClick={handleBack} disabled={isLoading}>Atrás</Button>}
-              {isFinalStep ? (
-                <Button onClick={handleFinish} disabled={isLoading}>
-                    {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    Finalizar y ir al Dashboard
+          <form onSubmit={(e) => e.preventDefault()}>
+            <CardContent className="min-h-[200px]">
+              <StepContent step={step} />
+            </CardContent>
+            <CardFooter className="flex justify-between">
+                <Button variant="ghost" onClick={handleSkip} disabled={isLoading || isSkipping}>
+                  {isSkipping ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Omitir por ahora
                 </Button>
-              ) : (
-                <Button onClick={handleNext} disabled={isLoading}>Siguiente</Button>
-              )}
-            </div>
-        </CardFooter>
+                <div className="flex gap-2">
+                  {step > 0 && <Button variant="outline" onClick={handleBack} disabled={isLoading}>Atrás</Button>}
+                  {isFinalStep ? (
+                    <Button onClick={handleFinish} disabled={isLoading}>
+                        {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Finalizar y ir al Dashboard
+                    </Button>
+                  ) : (
+                    <Button onClick={handleNext} disabled={isLoading}>Siguiente</Button>
+                  )}
+                </div>
+            </CardFooter>
+          </form>
+        </FormProvider>
       </Card>
     </div>
   );
