@@ -28,7 +28,7 @@ const warehouseSchema = z.object({
 const productSchema = z.object({
   productName: z.string().min(3, 'El nombre del producto es requerido.'),
   productSku: z.string().min(1, 'El SKU es requerido.'),
-  initialStock: z.coerce.number().int().nonnegative('El stock inicial no puede ser negativo.'),
+  initialStock: z.coerce.number().int().nonnegative('El stock no puede ser negativo.'),
 });
 
 const stepSchemas = [companySchema, warehouseSchema, productSchema];
@@ -42,8 +42,8 @@ const StepContent = ({ step }: { step: number }) => {
     return (
       <div className="space-y-4">
         <div>
-          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Empresa</label>
-          <Input {...register('companyName')} id="companyName" placeholder="Tu Empresa S.A." />
+          <label htmlFor="companyName" className="block text-sm font-medium text-gray-700 mb-1">Nombre de tu Empresa</label>
+          <Input {...register('companyName')} id="companyName" placeholder="Ej: Flux Logistics S.A." />
           {errors.companyName && <p className="mt-2 text-sm text-red-600">{`${errors.companyName.message}`}</p>}
         </div>
       </div>
@@ -54,12 +54,12 @@ const StepContent = ({ step }: { step: number }) => {
       <div className="space-y-4">
         <div>
           <label htmlFor="warehouseName" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Almacén</label>
-          <Input {...register('warehouseName')} id="warehouseName" placeholder="Bodega Principal" />
+          <Input {...register('warehouseName')} id="warehouseName" placeholder="Ej: Bodega Central" />
           {errors.warehouseName && <p className="mt-2 text-sm text-red-600">{`${errors.warehouseName.message}`}</p>}
         </div>
         <div>
           <label htmlFor="warehouseLocation" className="block text-sm font-medium text-gray-700 mb-1">Ubicación (Opcional)</label>
-          <Input {...register('warehouseLocation')} id="warehouseLocation" placeholder="Santiago, Chile" />
+          <Input {...register('warehouseLocation')} id="warehouseLocation" placeholder="Ej: Santiago, Chile" />
         </div>
       </div>
     );
@@ -68,17 +68,17 @@ const StepContent = ({ step }: { step: number }) => {
     return (
       <div className="space-y-4">
         <div>
-          <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto</label>
-          <Input {...register('productName')} id="productName" placeholder="Laptop Pro" />
+          <label htmlFor="productName" className="block text-sm font-medium text-gray-700 mb-1">Nombre de tu primer producto</label>
+          <Input {...register('productName')} id="productName" placeholder="Ej: Zapatillas Deportivas" />
           {errors.productName && <p className="mt-2 text-sm text-red-600">{`${errors.productName.message}`}</p>}
         </div>
         <div>
-          <label htmlFor="productSku" className="block text-sm font-medium text-gray-700 mb-1">SKU</label>
-          <Input {...register('productSku')} id="productSku" placeholder="LP-001" />
+          <label htmlFor="productSku" className="block text-sm font-medium text-gray-700 mb-1">SKU (Identificador único)</label>
+          <Input {...register('productSku')} id="productSku" placeholder="Ej: ZAP-DEP-42" />
           {errors.productSku && <p className="mt-2 text-sm text-red-600">{`${errors.productSku.message}`}</p>}
         </div>
         <div>
-          <label htmlFor="initialStock" className="block text-sm font-medium text-gray-700 mb-1">Stock Inicial</label>
+          <label htmlFor="initialStock" className="block text-sm font-medium text-gray-700 mb-1">Cantidad Inicial</label>
           <Input {...register('initialStock')} id="initialStock" type="number" placeholder="100" />
           {errors.initialStock && <p className="mt-2 text-sm text-red-600">{`${errors.initialStock.message}`}</p>}
         </div>
@@ -90,14 +90,14 @@ const StepContent = ({ step }: { step: number }) => {
     const values = getValues();
     return (
       <div>
-        <h3 className="text-lg font-medium">Resumen</h3>
-        <ul className="mt-2 space-y-1 text-sm text-muted-foreground">
-          <li><strong>Empresa:</strong> {values.companyName}</li>
-          <li><strong>Almacén:</strong> {values.warehouseName} ({values.warehouseLocation || 'Sin ubicación'})</li>
-          <li><strong>Producto:</strong> {values.productName} ({values.productSku})</li>
-          <li><strong>Stock Inicial:</strong> {values.initialStock} unidades</li>
+        <h3 className="text-lg font-medium">Resumen de Configuración</h3>
+        <p className="mt-1 text-sm text-muted-foreground">Verifica los datos antes de lanzar tu nuevo WMS.</p>
+        <ul className="mt-4 space-y-2 text-sm p-4 bg-muted/50 rounded-lg border">
+          <li><strong className="font-medium text-foreground">Empresa:</strong> {values.companyName}</li>
+          <li><strong className="font-medium text-foreground">Almacén:</strong> {values.warehouseName} ({values.warehouseLocation || 'Sin ubicación'})</li>
+          <li><strong className="font-medium text-foreground">Producto:</strong> {values.productName} (SKU: {values.productSku})</li>
+          <li><strong className="font-medium text-foreground">Stock Inicial:</strong> {values.initialStock || 0} unidades</li>
         </ul>
-        <p className="mt-4 text-sm">Al finalizar, estos datos se crearán en tu cuenta para que puedas empezar a operar.</p>
       </div>
     );
   }
@@ -105,16 +105,16 @@ const StepContent = ({ step }: { step: number }) => {
 };
 
 const stepTitles = [
-  'Configura tu Empresa',
-  'Crea tu primer Almacén',
-  'Agrega un Producto de demostración',
+  'Bienvenido a FLUX. Empecemos por tu empresa.',
+  'Tu primer centro de operaciones',
+  'Crea un producto para empezar a operar',
   '¡Todo listo para empezar!'
 ];
 
 const stepDescriptions = [
   'Danos el nombre de tu empresa para personalizar tu espacio de trabajo.',
-  'Define el primer almacén desde donde gestionarás tu inventario.',
-  'Añade un producto inicial para poder realizar las primeras operaciones.',
+  'Cada movimiento de inventario ocurre en un almacén. Define el principal.',
+  'Necesitas al menos un producto para crear tu primera orden o recibir stock.',
   'Revisa la configuración. Todo estará listo para que explores la plataforma.'
 ];
 
@@ -221,7 +221,7 @@ export default function FirstRunPage() {
             });
 
             // Create ledger entry
-            const ledgerRef = doc(firestore.collection('inventory_ledger'));
+            const ledgerRef = doc(collection(firestore, 'inventory_ledger'));
             batch.set(ledgerRef, {
                 companyId,
                 warehouseId,
@@ -259,7 +259,7 @@ export default function FirstRunPage() {
         
         toast({
             title: '¡Configuración completada!',
-            description: 'Tu espacio de trabajo está listo.',
+            description: 'Tu espacio de trabajo está listo. Bienvenido a FLUX.',
         });
         router.push('/dashboard');
     } catch (error: any) {
@@ -290,12 +290,12 @@ export default function FirstRunPage() {
       <Card className="w-full max-w-lg">
         <CardHeader>
           <Progress value={progress} className="mb-4 h-2" />
-          <CardTitle>{stepTitles[step]}</CardTitle>
+          <CardTitle className="text-xl">{stepTitles[step]}</CardTitle>
           <CardDescription>{stepDescriptions[step]}</CardDescription>
         </CardHeader>
         <FormProvider {...methods}>
           <form onSubmit={(e) => e.preventDefault()}>
-            <CardContent className="min-h-[200px]">
+            <CardContent className="min-h-[260px]">
               <StepContent step={step} />
             </CardContent>
             <CardFooter className="flex justify-between">
@@ -306,12 +306,12 @@ export default function FirstRunPage() {
                 <div className="flex gap-2">
                   {step > 0 && <Button variant="outline" onClick={handleBack} disabled={isLoading}>Atrás</Button>}
                   {isFinalStep ? (
-                    <Button onClick={handleFinish} disabled={isLoading}>
+                    <Button onClick={handleFinish} disabled={isLoading} size="lg">
                         {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Finalizar y ir al Dashboard
+                        Finalizar e ir al Dashboard
                     </Button>
                   ) : (
-                    <Button onClick={handleNext} disabled={isLoading}>Siguiente</Button>
+                    <Button onClick={handleNext} disabled={isLoading}>Continuar</Button>
                   )}
                 </div>
             </CardFooter>
