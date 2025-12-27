@@ -6,29 +6,41 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/com
 import { Package, ShoppingCart, Warehouse } from 'lucide-react';
 import { useFirebase } from '@/context/firebase-provider';
 import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '@/context/auth-context';
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
+  const { user } = useAuth();
 
   useEffect(() => {
     const runHealthCheck = async () => {
-      if (!firestore) return;
+      // Run check only if firestore and user are available
+      if (!firestore || !user) return;
+      
       try {
-        const healthCheckDoc = doc(firestore, "health", "ping");
-        await getDoc(healthCheckDoc);
-        console.log("%c[FirebaseDiag] Firestore ping successful!", "color: green");
+        // Ping the user's own document, which should always be readable by them
+        const userDocRef = doc(firestore, "users", user.uid);
+        await getDoc(userDocRef);
+        console.log("%c[FirebaseDiag] Firestore ping successful! (read users/self)", "color: green");
       } catch (error: any) {
+        console.error("[FirebaseDiag] Raw error:", error);
         console.error(
           "%c[FirebaseDiag] Firestore ping failed.", "color: red",
           {
-            code: error.code,
-            message: error.message,
+            name: error?.name,
+            message: error?.message,
+            code: error?.code,
+            stack: error?.stack,
+            toString: String(error),
           }
         );
+         if (error?.customData) {
+            console.error("[FirebaseDiag] Custom Data:", error.customData);
+        }
       }
     };
     runHealthCheck();
-  }, [firestore]);
+  }, [firestore, user]);
 
 
   return (
