@@ -121,6 +121,7 @@ export default function DashboardPage() {
             data={movementsData}
             dataKey="value"
             xAxisKey="date"
+            xAxisKey="date"
             color="hsl(var(--chart-2))"
           />
         </div>

@@ -2,9 +2,10 @@
 
 import { app, auth, firestore } from '@/lib/firebase-client';
 import type { FirebaseApp } from 'firebase/app';
-import type { Auth } from 'firebase/auth';
+import type { Auth, User, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import * as React from 'react';
+import { AuthProvider, useAuth } from '@/context/auth-context';
 
 interface IFirebaseContext {
   app: FirebaseApp;
@@ -19,9 +20,21 @@ export interface FirebaseProviderProps {
 }
 
 export function FirebaseProvider({ children }: FirebaseProviderProps) {
+  const [isClient, setIsClient] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsClient(true);
+  }, []);
+  
+  if (!isClient) {
+    return null; // O un componente de carga
+  }
+
   return (
     <FirebaseContext.Provider value={{ app, auth, firestore }}>
-      {children}
+      <AuthProvider>
+        {children}
+      </AuthProvider>
     </FirebaseContext.Provider>
   );
 }

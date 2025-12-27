@@ -1,8 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { AuthProvider } from '@/context/auth-context';
 import { Toaster } from '@/components/ui/toaster';
-import { FirebaseClientProvider } from '@/context/firebase-client-provider';
+import { FirebaseProvider } from '@/context/firebase-provider';
 
 export const metadata: Metadata = {
   title: 'FLUX Wems Core',
@@ -29,12 +28,10 @@ export default function RootLayout({
         />
       </head>
       <body className="font-body antialiased">
-        <FirebaseClientProvider>
-          <AuthProvider>
+        <FirebaseProvider>
             {children}
             <Toaster />
-          </AuthProvider>
-        </FirebaseClientProvider>
+        </FirebaseProvider>
       </body>
     </html>
   );
