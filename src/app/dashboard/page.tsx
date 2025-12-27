@@ -3,13 +3,15 @@
 import React from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { ShoppingCart, AlertTriangle, Truck, Repeat, Loader2 } from 'lucide-react';
+import { ShoppingCart, AlertTriangle, Truck, Repeat, Loader2, ArrowUp, ArrowDown, Activity } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useFirebase } from '@/context/firebase-provider';
 import { useDocument } from 'react-firebase-hooks/firestore';
 import { doc } from 'firebase/firestore';
 import type { KpiSnapshot } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
+import TimeseriesChart from '@/components/dashboard/timeseries-chart';
+
 
 function KpiCard({ title, value, icon, description, loading }: { title: string, value: string | number, icon: React.ReactNode, description: string, loading: boolean }) {
   return (
@@ -35,6 +37,26 @@ function KpiCard({ title, value, icon, description, loading }: { title: string, 
   );
 }
 
+// Mock data for charts
+const ordersData = [
+  { date: '2024-05-01', value: 22 },
+  { date: '2024-05-02', value: 35 },
+  { date: '2024-05-03', value: 28 },
+  { date: '2024-05-04', value: 42 },
+  { date: '2024-05-05', value: 30 },
+  { date: '2024-05-06', value: 50 },
+  { date: '2024-05-07', value: 45 },
+];
+
+const movementsData = [
+  { date: '2024-05-01', value: 150 },
+  { date: '2024-05-02', value: 210 },
+  { date: '2024-05-03', value: 180 },
+  { date: '2024-05-04', value: 250 },
+  { date: '2024-05-05', value fleeing: 190 },
+  { date: '2024-05-06', value: 300 },
+  { date: '2024-05-07', value: 280 },
+];
 
 export default function DashboardPage() {
   const { firestore } = useFirebase();
@@ -83,6 +105,24 @@ export default function DashboardPage() {
             loading={loading}
           />
         </div>
+
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <TimeseriesChart
+            title="Órdenes por Día (Últimos 7 días)"
+            data={ordersData}
+            dataKey="value"
+            xAxisKey="date"
+            color="hsl(var(--chart-1))"
+          />
+           <TimeseriesChart
+            title="Movimientos de Inventario (Últimos 7 días)"
+            data={movementsData}
+            dataKey="value"
+            xAxisKey="date"
+            color="hsl(var(--chart-2))"
+          />
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>Bienvenido a FLUX Wems Core</CardTitle>
