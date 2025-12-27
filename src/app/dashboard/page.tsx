@@ -33,7 +33,7 @@ function KpiCard({ title, value, icon, description, loading }: { title: string, 
   );
 }
 
-// Mock data for charts
+// Mock data for charts - to be replaced with data from kpi_snapshots_daily
 const ordersData = [
   { date: '2024-05-01', value: 22 },
   { date: '2024-05-02', value: 35 },
