@@ -47,9 +47,9 @@ service cloud.firestore {
                           
       // A user can update their own profile, but CANNOT change their role or companyId.
       // An admin can update any user in their company, including changing their role.
-      allow update: if isOwner(userId) && 
+      allow update: if (isOwner(userId) && 
                       !(request.resource.data.role != resource.data.role ||
-                        request.resource.data.companyId != resource.data.companyId)
+                        request.resource.data.companyId != resource.data.companyId))
                     ||
                     (isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId));
                      
@@ -64,18 +64,24 @@ service cloud.firestore {
        allow read: if isSignedIn();
     }
 
+    match /onboarding_checklists/{companyId} {
+      allow read: if isSameCompany(companyId);
+      allow write: if false; // Only updated via server-side logic (batch writes)
+    }
+
     // --- Business Logic Rules ---
 
     match /companies/{companyId} {
+      // Admins can manage their company document. SuperAdmins can list them.
       allow read, write: if isAdmin() && isSameCompany(companyId);
       allow list: if isSuperAdmin();
     }
 
     // Orders collection
     match /orders/{orderId} {
-      // Any authenticated user of the company can view an order.
+      // Anyone in the company can read an order.
       allow get: if isSameCompany(resource.data.companyId);
-      // Any authenticated user can list orders for their company.
+      // Listing is restricted by companyId in the query.
       allow list: if request.query.companyId == getUserData().companyId;
       // Admins and Operators can create and update orders.
       allow create, update: if isOperator() && isSameCompany(request.resource.data.companyId);
@@ -85,32 +91,32 @@ service cloud.firestore {
     
     // Order events are append-only.
     match /orders/{orderId}/events/{eventId} {
-       // Any authenticated user of the company can read events.
+       // Anyone in the company can read events of an order they have access to.
        allow read: if get(/databases/$(database)/documents/orders/$(orderId)).data.companyId == getUserData().companyId;
-       // Operators and Admins can create events (e.g., by changing order status).
-       allow create: if isOperator() && request.resource.data.companyId == getUserData().companyId;
+       // Operators and Admins can create events.
+       allow create: if isOperator() && isSameCompany(request.resource.data.companyId);
        // Events are immutable.
        allow update, delete: if false;
     }
     
-    // Inventory Balances
+    // Inventory Balances - Read-only from client, except for server-side transactions
     match /inventory_balances/{balanceId} {
       // Anyone in the company can read inventory balances.
       allow get: if isSameCompany(resource.data.companyId);
       allow list: if request.query.companyId == getUserData().companyId;
-      // Writes are only allowed for admins/operators (via transactions for receiving or transferring).
-      allow write: if isOperator() && isSameCompany(request.resource.data.companyId);
-      // Direct deletions are denied to maintain integrity. Adjustments should be used.
-      allow delete: if false; 
+      // Client-side writes are forbidden to maintain data integrity.
+      // All writes must happen via transactions in backend/server-actions.
+      allow write: if false; 
     }
 
-    // Inventory Ledger is append-only for operators.
+    // Inventory Ledger is append-only.
     match /inventory_ledger/{ledgerId} {
        // Anyone in the company can read the ledger for auditing.
-       allow get, list: if isSameCompany(resource.data.companyId);
-       // Only operators and admins can create ledger entries (via transactions).
+       allow get: if isSameCompany(resource.data.companyId);
+       allow list: if request.query.companyId == getUserData().companyId;
+       // Only operators and admins can create ledger entries (via server-side transactions).
        allow create: if isOperator() && isSameCompany(request.resource.data.companyId);
-       // The ledger is immutable. Deny any modification or deletion.
+       // The ledger is immutable.
        allow update, delete: if false;
     }
     
