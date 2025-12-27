@@ -98,14 +98,15 @@ service cloud.firestore {
       // Anyone in the company can read inventory balances.
       allow get: if isSameCompany(resource.data.companyId);
       allow list: if request.query.companyId == getUserData().companyId;
-      // Writes are only allowed for admins/operators (via transactions).
+      // Writes are only allowed for admins/operators (via transactions for receiving or transferring).
       allow write: if isOperator() && isSameCompany(request.resource.data.companyId);
-      allow delete: if false; // Deny direct deletions.
+      // Direct deletions are denied to maintain integrity. Adjustments should be used.
+      allow delete: if false; 
     }
 
     // Inventory Ledger is append-only for operators.
     match /inventory_ledger/{ledgerId} {
-       // Anyone in the company can read the ledger.
+       // Anyone in the company can read the ledger for auditing.
        allow get, list: if isSameCompany(resource.data.companyId);
        // Only operators and admins can create ledger entries (via transactions).
        allow create: if isOperator() && isSameCompany(request.resource.data.companyId);
