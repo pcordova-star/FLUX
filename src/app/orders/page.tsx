@@ -18,7 +18,7 @@ import type { Order } from '@/lib/types';
 import PageSpinner from '@/components/page-spinner';
 
 export default function OrdersPage() {
-  const { companyId, loading: authLoading } = useAuth();
+  const { companyId, loading: authLoading, role } = useAuth();
   const { firestore } = useFirebase();
   const [isCreateDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -39,6 +39,7 @@ export default function OrdersPage() {
     return <PageSpinner />;
   }
 
+  const canCreateOrder = role === 'admin' || role === 'operator';
   const orders = ordersSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order)) || [];
 
   return (
@@ -46,10 +47,12 @@ export default function OrdersPage() {
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Pedidos</h1>
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Nueva Orden
-          </Button>
+          {canCreateOrder && (
+            <Button onClick={() => setCreateDialogOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nueva Orden
+            </Button>
+          )}
         </div>
         
         <CreateOrderDialog

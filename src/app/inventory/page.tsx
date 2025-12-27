@@ -39,7 +39,7 @@ const StockStatusBadge = ({ qty }: { qty: number }) => {
 };
 
 export default function InventoryPage() {
-  const { companyId, loading: authLoading } = useAuth();
+  const { companyId, loading: authLoading, role } = useAuth();
   const { firestore } = useFirebase();
   const [isReceiveStockOpen, setReceiveStockOpen] = useState(false);
 
@@ -57,6 +57,8 @@ export default function InventoryPage() {
   if (authLoading) {
     return <PageSpinner />;
   }
+  
+  const canReceiveStock = role === 'admin' || role === 'operator';
 
   const balances = balancesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as InventoryBalance)) || [];
 
@@ -65,10 +67,12 @@ export default function InventoryPage() {
       <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Inventario</h1>
-          <Button onClick={() => setReceiveStockOpen(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Recibir Stock
-          </Button>
+          {canReceiveStock && (
+            <Button onClick={() => setReceiveStockOpen(true)}>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Recibir Stock
+            </Button>
+          )}
         </div>
 
         <ReceiveStockDialog

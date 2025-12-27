@@ -77,7 +77,7 @@ export default function OrderDetailPage() {
   const params = useParams();
   const orderId = params.orderId as string;
 
-  const { user, companyId, loading: authLoading } = useAuth();
+  const { user, companyId, loading: authLoading, role } = useAuth();
   const { firestore } = useFirebase();
   const { toast } = useToast();
 
@@ -184,7 +184,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  // Security check
+  // Security check (UI layer)
   if (user && companyId && order.companyId !== companyId) {
     return (
       <AppLayout>
@@ -193,7 +193,7 @@ export default function OrderDetailPage() {
     );
   }
 
-  const canPerformActions = !!(user && companyId && order.companyId === companyId);
+  const canPerformActions = role === 'admin' || role === 'operator';
   const canReserve = canPerformActions && ['created', 'received'].includes(order.status);
   const canConfirmPicking = canPerformActions && ['created', 'received', 'picking'].includes(order.status);
 
@@ -205,36 +205,38 @@ export default function OrderDetailPage() {
         <div className="flex items-center justify-between space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">Orden #{order.orderNumber}</h1>
 
-          <div className="flex items-center space-x-2">
-            <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending}>
-              {isReserving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Reservar Stock
-            </Button>
+          {canPerformActions && (
+            <div className="flex items-center space-x-2">
+              <Button onClick={handleReserveStock} disabled={!canReserve || isActionPending}>
+                {isReserving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Reservar Stock
+              </Button>
 
-            <Button onClick={handleConfirmPick} disabled={!canConfirmPicking || isActionPending}>
-              {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirmar Picking
-            </Button>
+              <Button onClick={handleConfirmPick} disabled={!canConfirmPicking || isActionPending}>
+                {isConfirming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Confirmar Picking
+              </Button>
 
-            <Select
-              onValueChange={(value) => handleStatusChange(value as OrderStatus)}
-              value={order.status}
-              disabled={isActionPending}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Cambiar estado" />
-              </SelectTrigger>
-              <SelectContent>
-                {ORDER_STATUSES.map((status) => (
-                  <SelectItem key={status} value={status}>
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              <Select
+                onValueChange={(value) => handleStatusChange(value as OrderStatus)}
+                value={order.status}
+                disabled={isActionPending}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="Cambiar estado" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ORDER_STATUSES.map((status) => (
+                    <SelectItem key={status} value={status}>
+                      {status}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
 
-            {isUpdatingStatus && <Loader2 className="animate-spin" />}
-          </div>
+              {isUpdatingStatus && <Loader2 className="animate-spin" />}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
