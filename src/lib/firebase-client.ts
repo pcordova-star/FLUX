@@ -25,18 +25,17 @@ let auth: Auth;
 let firestore: Firestore;
 let storage: Storage;
 
-if (getApps().length === 0) {
-    app = initializeApp(firebaseConfig);
-} else {
-    app = getApp();
-}
-
-firestore = getFirestore(app);
-auth = getAuth(app);
-storage = getStorage(app);
-
-// Enable persistence only on the client-side
 if (typeof window !== 'undefined') {
+  if (getApps().length === 0) {
+      app = initializeApp(firebaseConfig);
+  } else {
+      app = getApp();
+  }
+
+  firestore = getFirestore(app);
+  auth = getAuth(app);
+  storage = getStorage(app);
+
   try {
     enableIndexedDbPersistence(firestore);
   } catch (error: any) {
@@ -47,6 +46,16 @@ if (typeof window !== 'undefined') {
       // features required to enable persistence
     }
   }
+} else {
+    if (getApps().length === 0) {
+        app = initializeApp(firebaseConfig);
+    } else {
+        app = getApp();
+    }
+    firestore = getFirestore(app);
+    auth = getAuth(app);
+    storage = getStorage(app);
 }
+
 
 export { app, firestore, auth, storage };
