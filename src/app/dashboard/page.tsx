@@ -9,7 +9,6 @@ import { useFirebase } from '@/context/firebase-provider';
 import { useDocument } from 'react-firebase-hooks/firestore';
 import { doc } from 'firebase/firestore';
 import type { KpiSnapshot } from '@/lib/types';
-import { Skeleton } from '@/components/ui/skeleton';
 import TimeseriesChart from '@/components/dashboard/timeseries-chart';
 
 
@@ -22,10 +21,7 @@ function KpiCard({ title, value, icon, description, loading }: { title: string, 
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-4 w-3/4" />
-          </div>
+            <div className="h-8 w-24 rounded-md bg-muted animate-pulse" />
         ) : (
           <>
             <div className="text-2xl font-bold">{value}</div>
