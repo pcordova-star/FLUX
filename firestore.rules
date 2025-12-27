@@ -13,34 +13,37 @@ service cloud.firestore {
     }
     
     function getUserData() {
-      // It's more efficient to read the user's own data once per request.
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-
+    
     function isSuperAdmin() {
       return isSignedIn() && getUserData().role == 'super_admin';
     }
 
     function isAdmin() {
       let userRole = getUserData().role;
-      return isSignedIn() && (userRole == 'admin' || userRole == 'super_admin');
+      return isSignedIn() && (userRole == 'admin' || isSuperAdmin());
+    }
+
+    function isOperator() {
+      let userRole = getUserData().role;
+      return isSignedIn() && (userRole == 'operator' || isAdmin());
     }
     
     function isSameCompany(companyId) {
        return isSignedIn() && getUserData().companyId == companyId;
     }
-
+    
     // --- Base Rules ---
     
-    // Users can create, read, and update their OWN user document. No one else can.
     match /users/{userId} {
       allow create: if isOwner(userId);
-      allow read, update: if isOwner(userId);
-      allow delete: if false; // Soft deletes should be handled via an 'isActive' flag
+      allow read, update: if isOwner(userId) || (isAdmin() && isSameCompany(get(/databases/$(database)/documents/users/$(userId)).data.companyId));
+      allow delete: if false; 
     }
     
     match /seed_log/{logId} {
-       allow read, create: if isSignedIn();
+       allow read, create: if isSuperAdmin();
     }
     
     match /health/{docId} {
@@ -49,66 +52,64 @@ service cloud.firestore {
 
     // --- Business Logic Rules ---
 
-    // Admins and super-admins can manage their own company's document.
     match /companies/{companyId} {
-      // Admins/Super-Admins can read/write their own company doc.
       allow read, write: if isAdmin() && isSameCompany(companyId);
-      // Super-admins can list all companies.
       allow list: if isSuperAdmin();
     }
 
     // Orders collection
     match /orders/{orderId} {
+      // Any authenticated user of the company can view an order.
       allow get: if isSameCompany(resource.data.companyId);
+      // Any authenticated user can list orders for their company.
       allow list: if request.query.companyId == getUserData().companyId;
-      allow create, update: if isAdmin() && isSameCompany(request.resource.data.companyId);
-      allow delete: if false;
+      // Admins and Operators can create and update orders.
+      allow create, update: if isOperator() && isSameCompany(request.resource.data.companyId);
+      allow delete: if isAdmin() && isSameCompany(resource.data.companyId);
     }
-
+    
+    // Order events are append-only.
+    match /orders/{orderId}/events/{eventId} {
+       allow read: if get(/databases/$(database)/documents/orders/$(orderId)).data.companyId == getUserData().companyId;
+       allow create: if isOperator() && request.resource.data.companyId == getUserData().companyId;
+       allow update, delete: if false;
+    }
+    
     // Inventory Balances
     match /inventory_balances/{balanceId} {
+      // Anyone in the company can read inventory balances.
       allow get: if isSameCompany(resource.data.companyId);
       allow list: if request.query.companyId == getUserData().companyId;
-      // Allow writes only if user is part of the company.
-      // This is secure because transactions run with user credentials (which are validated to be admin).
-      allow write: if isAdmin() && isSameCompany(request.resource.data.companyId);
-      allow delete: if false;
+      // Writes are only allowed for operators/admins within a transaction.
+      // This is secure because the client-side services execute transactions with user credentials.
+      allow write: if isOperator() && isSameCompany(request.resource.data.companyId);
+      allow delete: if false; // Deny direct deletions.
     }
 
-    // Inventory Ledger (Append-Only)
+    // Inventory Ledger is append-only for operators.
     match /inventory_ledger/{ledgerId} {
        allow get: if isSameCompany(resource.data.companyId);
        allow list: if request.query.companyId == getUserData().companyId;
        // Only allow creation of ledger entries.
-       allow create: if isAdmin() && isSameCompany(request.resource.data.companyId);
+       allow create: if isOperator() && isSameCompany(request.resource.data.companyId);
        // Deny any modification or deletion to maintain immutability.
        allow update, delete: if false;
     }
     
-    // Generic rule for other company-scoped collections (less specific)
+    // Products, Warehouses, Clients
     match /{collection}/{docId} {
-       // An admin can write to any resource within their own company.
+       // Admins can manage core resources of their company.
        allow write: if collection in ['clients', 'warehouses', 'products']
                            && isAdmin()
                            && isSameCompany(request.resource.data.companyId); 
                            
-       // Any authenticated user can read a single document belonging to their company.
+       // Any authenticated user in the company can read these resources.
        allow get: if collection in ['clients', 'warehouses', 'products']
                   && isSameCompany(resource.data.companyId);
-
+                  
        // Users can LIST resources ONLY if they are querying by their own companyId.
        allow list: if collection in ['clients', 'warehouses', 'products']
                    && request.query.companyId == getUserData().companyId;
-    }
-    
-    // Special rules for order events.
-    match /orders/{orderId}/events/{eventId} {
-       // Allow reading events if the parent order belongs to the user's company.
-       allow read: if get(/databases/$(database)/documents/orders/$(orderId)).data.companyId == getUserData().companyId;
-       // Allow creating events if the event data includes the correct companyId.
-       allow create: if isAdmin() && request.resource.data.companyId == getUserData().companyId;
-       // Prevent modification of historical events.
-       allow update, delete: if false;
     }
   }
 }

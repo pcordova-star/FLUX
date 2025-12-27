@@ -1,8 +1,7 @@
 import type { FieldValue, Timestamp } from 'firebase/firestore';
 
 export const USER_ROLES = ['super_admin', 'admin', 'operator', 'viewer'] as const;
-export type UserRole = typeof USER_ROLES[number];
-
+export type UserRole = (typeof USER_ROLES)[number];
 
 export interface AppUser {
   uid: string;
@@ -18,7 +17,7 @@ export interface AppUser {
 
 export interface Company {
   id: string;
-  name:string;
+  name: string;
   createdAt: Timestamp;
 }
 
@@ -45,12 +44,10 @@ export interface Location {
 }
 
 export const ORDER_STATUSES = ['created', 'received', 'picking', 'packed', 'shipped', 'delivered', 'cancelled'] as const;
-export type OrderStatus = typeof ORDER_STATUSES[number];
-
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 export const ORDER_PRIORITIES = ['express', 'same_day', 'next_day', 'scheduled'] as const;
-export type OrderPriority = typeof ORDER_PRIORITIES[number];
-
+export type OrderPriority = (typeof ORDER_PRIORITIES)[number];
 
 export interface Order {
   id: string;
@@ -76,8 +73,7 @@ export type OrderEvent = {
   message: string;
   createdAt: Timestamp | null;
   createdBy: string; // user uid
-}
-
+};
 
 export interface InventoryBalance {
   id: string;
@@ -92,19 +88,18 @@ export interface InventoryBalance {
 }
 
 export const INVENTORY_LEDGER_TYPES = ['inbound', 'outbound', 'adjustment', 'reserve', 'pick'] as const;
-export type InventoryLedgerType = typeof INVENTORY_LEDGER_TYPES[number];
+export type InventoryLedgerType = (typeof INVENTORY_LEDGER_TYPES)[number];
 
 export const INVENTORY_LEDGER_REF_TYPES = ['manual', 'order', 'purchase_order', 'return'] as const;
-export type InventoryLedgerRefType = typeof INVENTORY_LEDGER_REF_TYPES[number];
-
+export type InventoryLedgerRefType = (typeof INVENTORY_LEDGER_REF_TYPES)[number];
 
 export interface InventoryLedger {
   id: string;
   companyId: string;
-  warehouseId:string;
+  warehouseId: string;
   clientId: string;
   sku: string;
-  deltaQty: number; // Cambio en el stock físico (+ para entrada, - para salida)
+  deltaQty?: number; // Cambio en el stock físico (+ para entrada, - para salida)
   reservedDeltaQty?: number; // Cambio en el stock reservado (+ para reservar, - para liberar/picar)
   type: InventoryLedgerType;
   refType?: InventoryLedgerRefType;
@@ -113,7 +108,6 @@ export interface InventoryLedger {
   createdAt: Timestamp | null;
   createdBy: string; // user uid
 }
-
 
 // Below are other types from the original app, kept for reference
 export interface UserProfile {
