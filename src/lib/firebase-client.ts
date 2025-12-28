@@ -1,7 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
-import { enableIndexedDbPersistence, getFirestore, type Firestore } from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
 import { getStorage, type Storage } from "firebase/storage";
 
 // Your web app's Firebase configuration
@@ -46,19 +46,6 @@ function getFirebaseAuth(): Auth {
 function getFirebaseFirestore(): Firestore {
   if (!firestore) {
     firestore = getFirestore(getFirebaseApp());
-
-    // Enable persistence in production environments, only on the client
-    if (process.env.NODE_ENV === 'production' && typeof window !== 'undefined') {
-        enableIndexedDbPersistence(firestore)
-          .then(() => console.log("[FirebaseDiag] Firestore persistence enabled."))
-          .catch((error: any) => {
-              if (error.code === 'failed-precondition') {
-                  console.warn("[FirebaseDiag] Firestore persistence failed: multiple tabs open.");
-              } else if (error.code === 'unimplemented') {
-                  console.warn("[FirebaseDiag] Firestore persistence not available in this browser.");
-              }
-          });
-    }
   }
   return firestore;
 }

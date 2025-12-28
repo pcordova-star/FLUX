@@ -7,7 +7,7 @@ import {
 } from '@/lib/firebase-client';
 import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
-import type { Firestore } from 'firebase/firestore';
+import { enableIndexedDbPersistence, type Firestore } from 'firebase/firestore';
 import * as React from 'react';
 import { AuthProvider } from '@/context/auth-context';
 
@@ -24,22 +24,32 @@ export interface FirebaseProviderProps {
 }
 
 export function FirebaseProvider({ children }: FirebaseProviderProps) {
-  // We use useState to hold the context value to ensure it's only created on the client
   const [firebaseContext, setFirebaseContext] = React.useState<IFirebaseContext | null>(null);
 
   React.useEffect(() => {
-    // This effect runs only on the client side
+    // Initialize Firebase services on the client
     const app = getFirebaseApp();
     const auth = getFirebaseAuth();
     const firestore = getFirebaseFirestore();
     
+    // Set the context value once services are initialized
     setFirebaseContext({ app, auth, firestore });
-  }, []);
+
+    // Enable persistence once, on the client, after Firestore is initialized
+    enableIndexedDbPersistence(firestore)
+      .then(() => console.log("[FirebaseDiag] Firestore persistence enabled."))
+      .catch((error: any) => {
+          if (error.code === 'failed-precondition') {
+              console.warn("[FirebaseDiag] Firestore persistence failed: multiple tabs open.");
+          } else if (error.code === 'unimplemented') {
+              console.warn("[FirebaseDiag] Firestore persistence not available in this browser.");
+          }
+      });
+      
+  }, []); // Empty dependency array ensures this runs only once on component mount
   
-  // If the context hasn't been created yet (i.e., on server or initial client render),
-  // we can return null or a loading spinner. Returning children would cause them
-  // to attempt to use a null context.
   if (!firebaseContext) {
+    // Render nothing until Firebase is initialized on the client
     return null;
   }
 
