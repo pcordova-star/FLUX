@@ -119,8 +119,7 @@ export default function AuditPage() {
 
     const renderExportButtons = (type: ExportType, requiresOrderId = false) => (
         <CardFooter className="flex-col items-start gap-4 bg-muted/50 border-t">
-            <p className="text-xs text-muted-foreground pt-4">Los exportes grandes pueden demorar. Usa rangos de fecha acotados para obtener resultados más rápido.</p>
-            <div className="flex justify-end gap-2 w-full">
+            <div className="flex justify-end gap-2 w-full pt-4">
                 <Button variant="secondary" onClick={() => handleExport(type, 'csv')} disabled={isLoading === `${type}-csv` || (requiresOrderId && !orderId)}>
                     {isLoading === `${type}-csv` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     Exportar a CSV
@@ -152,6 +151,9 @@ export default function AuditPage() {
                     </Tooltip>
                 </TooltipProvider>
             </div>
+             <p className="text-xs text-muted-foreground pt-2">
+                Los exportes CSV/Excel pueden contener hasta 10,000 registros. Los PDF están optimizados y acotados a un máximo de 2,000.
+            </p>
         </CardFooter>
     );
 
