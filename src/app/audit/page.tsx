@@ -50,6 +50,7 @@ export default function AuditPage() {
     const [activeTab, setActiveTab] = useState<TabValue>('ledger');
     
     const debouncedDateRange = useDebounce(dateRange, 300);
+    const debouncedOrderId = useDebounce(orderId, 500);
 
     const previewFilters = useMemo(() => ({
         from: debouncedDateRange?.from ? startOfDay(debouncedDateRange.from).toISOString() : undefined,
@@ -213,7 +214,7 @@ export default function AuditPage() {
                                         onChange={(e) => setOrderId(e.target.value)}
                                     />
                                 </div>
-                                {orderId && <EventsPreviewTimeline orderId={orderId} />}
+                                {<EventsPreviewTimeline orderId={debouncedOrderId} />}
                             </CardContent>
                             <Separator />
                             <CardHeader className="pb-2 pt-6"><CardTitle className="text-lg">Exportar Eventos de Pedido</CardTitle></CardHeader>
