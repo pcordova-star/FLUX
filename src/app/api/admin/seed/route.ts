@@ -49,16 +49,11 @@ const addOrderWithEvents = (
 };
 
 export async function POST(req: NextRequest) {
-  let userContext: UserServerContext | null = null;
-  
   try {
-    console.log("[Seed] Admin initialized with explicit service account");
-    const adminDb = getAdminDb(); // This will trigger initialization
+    const adminDb = getAdminDb(); // This will trigger ADC initialization
+    console.log("[Seed] Admin SDK initialized, proceeding with seed logic.");
 
-    // 1. Get user context
-    userContext = await getUserServerContext(req);
-
-    // 2. Check if seeding has been performed before.
+    // 1. Check if seeding has been performed before.
     const seedLogCollection = await adminDb.collection('seed_log').limit(1).get();
     if (!seedLogCollection.empty) {
       const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
@@ -66,19 +61,18 @@ export async function POST(req: NextRequest) {
       return new NextResponse(JSON.stringify({ ok: false, message: message }), { status: 409 });
     }
 
-    // 3. Authorization Logic
+    // 2. Authorization Logic - Simplified for bootstrap
     const companiesSnap = await adminDb.collection('companies').limit(1).get();
     const noCompaniesExist = companiesSnap.empty;
 
+    const userContext = await getUserServerContext(req);
     const role = userContext?.role ?? null;
     const isBootstrapAllowed = noCompaniesExist;
     const isAdmin = role === 'admin' || role === 'super_admin';
 
-    // Log auth context for debugging
     console.log('[SEED][AUTH] Context:', {
       uid: userContext?.uid,
       role: userContext?.role,
-      companyId: userContext?.companyId,
       isBootstrapAllowed,
       isAdmin,
     });
@@ -88,9 +82,6 @@ export async function POST(req: NextRequest) {
         denyReason: 'companies_exist_requires_admin',
         uid: userContext?.uid,
         role: userContext?.role,
-        companyId: userContext?.companyId,
-        isActive: userContext?.appUser?.isActive,
-        noCompaniesExist,
       };
       console.log('[SEED][DENY]', details);
       return new NextResponse(
@@ -189,16 +180,6 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[SEED][ERROR]', error);
-    
-    // For auth/permission errors that we throw deliberately
-    if (error.message.includes('No autorizado')) {
-        const details = { denyReason: "invalid_session", uid: userContext?.uid, role: userContext?.role };
-        console.log('[SEED][DENY]', details);
-        return new NextResponse(
-            JSON.stringify({ ok: false, message: 'No tienes permiso para realizar esta acción.', details }),
-            { status: 403 }
-        );
-    }
     
     // For all other errors, including admin init failures
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';

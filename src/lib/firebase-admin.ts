@@ -1,47 +1,32 @@
-
 import "server-only";
-import { initializeApp, getApps, getApp, cert, type App } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
 
 let adminApp: App | null = null;
 
-// This function enforces a single, explicit initialization path using a service account JSON.
-// It completely avoids attempting to use Application Default Credentials (ADC), which prevents
-// metadata server errors in environments like Firebase Studio Preview.
+/**
+ * Initializes the Firebase Admin SDK, relying on Application Default Credentials (ADC).
+ * This pattern is required for environments like Firebase App Hosting and Cloud Run
+ * where credentials are automatically provided.
+ * It prevents re-initialization on hot reloads.
+ */
 function getAdminApp(): App {
   if (adminApp) {
     return adminApp;
   }
 
-  // There is only one way to init: via the service account JSON.
-  const serviceAccountString = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT;
-  if (!serviceAccountString) {
-    throw new Error(
-      "Firebase Admin SDK not configured. The FIREBASE_ADMIN_SERVICE_ACCOUNT environment variable is required."
-    );
+  // In Google Cloud environments (like App Hosting), the SDK will automatically
+  // find the service account credentials. No manual configuration is needed.
+  if (!getApps().length) {
+    console.log("[FirebaseAdmin] Initializing with Application Default Credentials.");
+    adminApp = initializeApp();
+  } else {
+    console.log("[FirebaseAdmin] Using existing app instance.");
+    adminApp = getApp();
   }
-
-  try {
-    const serviceAccount = JSON.parse(serviceAccountString);
-    
-    // The private key inside the JSON might have escaped newlines ('\\n')
-    // which need to be converted to actual newlines ('\n').
-    const privateKey = serviceAccount.private_key?.replace(/\\n/g, '\n');
-
-    adminApp = initializeApp({
-        credential: cert({
-            projectId: serviceAccount.project_id,
-            clientEmail: serviceAccount.client_email,
-            privateKey,
-        })
-    });
-    
-    return adminApp;
-
-  } catch (e: any) {
-      throw new Error(`Failed to parse or use FIREBASE_ADMIN_SERVICE_ACCOUNT: ${e.message}`);
-  }
+  
+  return adminApp;
 }
 
 // Lazy getters for Firestore and Auth services
