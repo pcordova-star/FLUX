@@ -1,8 +1,10 @@
+'use server';
+
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
-import { Timestamp }from 'firebase-admin/firestore';
+import { Timestamp } from 'firebase-admin/firestore';
 import type { Order, OrderEvent, OrderStatus, UserRole } from '@/lib/types';
-import { getUserServerContext } from '@/lib/exports/authz';
+import { getUserServerContext, type UserServerContext } from '@/lib/exports/authz';
 
 // This is a simplified version of the seed data structure from actions.ts
 interface UserSeedData {
@@ -44,32 +46,57 @@ const addOrderWithEvents = (
   }
 };
 
-
 export async function POST(req: NextRequest) {
-  const userContext = await getUserServerContext(req).catch(() => null);
-
-  if (!userContext) {
-    const denyReason = "Usuario no autenticado o sesión inválida.";
-    console.warn(`[SEED][DENY] ${denyReason}`);
-    return new NextResponse(
-      JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.', details: { denyReason } }),
-      { status: 403 }
-    );
-  }
+  const adminDb = getAdminDb();
+  let userContext: UserServerContext | null = null;
   
-  console.log('[SEED][AUTH] User authenticated:', { uid: userContext.uid, role: userContext.role, companyId: userContext.companyId });
-
   try {
-    const adminDb = getAdminDb();
+    // 1. Get user context
+    userContext = await getUserServerContext(req);
 
-    // Check if seeding has been performed before.
+    // 2. Check if seeding has been performed before.
     const seedLogCollection = await adminDb.collection('seed_log').limit(1).get();
     if (!seedLogCollection.empty) {
-        const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
-        console.warn(`[SEED] ${message}`);
-        return new NextResponse(JSON.stringify({ success: false, message: message }), { status: 409 });
+      const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
+      console.warn(`[SEED][DENY] ${message}`);
+      return new NextResponse(JSON.stringify({ success: false, message: message }), { status: 409 });
     }
-    console.log('[SEED] No previous seed detected. Proceeding.');
+
+    // 3. Authorization Logic
+    const companiesSnap = await adminDb.collection('companies').limit(1).get();
+    const noCompaniesExist = companiesSnap.empty;
+
+    const role = userContext?.role ?? null;
+    const isBootstrapAllowed = noCompaniesExist;
+    const isAdmin = role === 'admin' || role === 'super_admin';
+
+    // Log auth context for debugging
+    console.log('[SEED][AUTH] Context:', {
+      uid: userContext?.uid,
+      role: userContext?.role,
+      companyId: userContext?.companyId,
+      isBootstrapAllowed,
+      isAdmin,
+    });
+
+    if (!isBootstrapAllowed && !isAdmin) {
+      const details = {
+        denyReason: 'companies_exist_requires_admin',
+        uid: userContext?.uid,
+        role: userContext?.role,
+        companyId: userContext?.companyId,
+        isActive: userContext?.appUser?.isActive,
+        noCompaniesExist,
+      };
+      console.log('[SEED][DENY]', details);
+      return new NextResponse(
+        JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.', details }),
+        { status: 403 }
+      );
+    }
+    
+    // --- If authorization passes, proceed with seeding ---
+    console.log('[SEED] Authorization passed. Proceeding.');
     
     const now = Timestamp.now();
     const SEED_ID = `seed_${now.toMillis()}`;
@@ -90,8 +117,8 @@ export async function POST(req: NextRequest) {
       { uid: 'viewer_user_id', email: 'viewer@demo.com', displayName: 'Viewer Demo', role: 'viewer' },
     ];
     for (const user of usersToSeed) {
-        const userRef = adminDb.collection('users').doc(user.uid);
-        batch.set(userRef, { ...user, companyId: companyId, isActive: true, createdAt: now });
+      const userRef = adminDb.collection('users').doc(user.uid);
+      batch.set(userRef, { ...user, companyId: companyId, isActive: true, createdAt: now });
     }
     console.log(`[SEED] Prepared: ${usersToSeed.length} users`);
 
@@ -101,7 +128,6 @@ export async function POST(req: NextRequest) {
     batch.set(warehouseRef, { name: 'Almacén Principal (Demo)', companyId, createdAt: now });
     console.log(`[SEED] Prepared: Warehouse '${warehouseId}'`);
 
-
     // 4. Products and Inventory
     const products = [
       { name: 'Laptop Pro X1', sku: 'LAP-PRO-X1', stock: 50 },
@@ -110,16 +136,16 @@ export async function POST(req: NextRequest) {
     ];
     let criticalStockCount = 0;
     for (const product of products) {
-        const productRef = adminDb.collection('products').doc(product.sku);
-        batch.set(productRef, { name: product.name, sku: product.sku, companyId, createdAt: now });
-        if (product.stock > 0) {
-            const balanceId = `${companyId}_${warehouseId}_default_${product.sku.toLowerCase()}`;
-            const balanceRef = adminDb.collection('inventory_balances').doc(balanceId);
-            batch.set(balanceRef, { companyId, warehouseId, clientId: 'default', sku: product.sku, qty: product.stock, reservedQty: 0, updatedAt: now });
-            const ledgerRef = adminDb.collection('inventory_ledger').doc();
-            batch.set(ledgerRef, { companyId, warehouseId, clientId: 'default', sku: product.sku, deltaQty: product.stock, type: 'inbound', refType: 'manual', note: 'Stock inicial demo', createdAt: now });
-        }
-        if (product.stock === 0) criticalStockCount++;
+      const productRef = adminDb.collection('products').doc(product.sku);
+      batch.set(productRef, { name: product.name, sku: product.sku, companyId, createdAt: now });
+      if (product.stock > 0) {
+        const balanceId = `${companyId}_${warehouseId}_default_${product.sku.toLowerCase()}`;
+        const balanceRef = adminDb.collection('inventory_balances').doc(balanceId);
+        batch.set(balanceRef, { companyId, warehouseId, clientId: 'default', sku: product.sku, qty: product.stock, reservedQty: 0, updatedAt: now });
+        const ledgerRef = adminDb.collection('inventory_ledger').doc();
+        batch.set(ledgerRef, { companyId, warehouseId, clientId: 'default', sku: product.sku, deltaQty: product.stock, type: 'inbound', refType: 'manual', note: 'Stock inicial demo', createdAt: now });
+      }
+      if (product.stock === 0) criticalStockCount++;
     }
     console.log(`[SEED] Prepared: ${products.length} products and inventory balances.`);
 
@@ -135,18 +161,18 @@ export async function POST(req: NextRequest) {
     );
     console.log('[SEED] Prepared: 2 orders with events.');
 
-
     // 6. KPI Snapshot
     const kpiRef = adminDb.collection('kpi_snapshots').doc(companyId);
     batch.set(kpiRef, {
-        companyId, ordersToday: 2, ordersInProgress: 1, ordersDelayed: 0,
-        criticalStockItems: criticalStockCount, updatedAt: now,
+      companyId, ordersToday: 2, ordersInProgress: 1, ordersDelayed: 0,
+      criticalStockItems: criticalStockCount, updatedAt: now,
     });
     console.log('[SEED] Prepared: KPI Snapshot.');
 
     // 7. Log Seed Operation
     batch.set(seedLogRef, {
-      seededAt: now, status: 'success',
+      seededAt: now,
+      status: 'success',
       description: 'Acción de inicialización con datos de demostración.',
       details: `Created company '${companyId}', 3 users, 1 warehouse, 3 products, 2 orders.`,
     });
@@ -159,6 +185,22 @@ export async function POST(req: NextRequest) {
 
   } catch (error: any) {
     console.error('[SEED][ERROR]', error);
+    
+    // If the error is due to auth, return a 403
+    if (error.message.includes('No autorizado') || error.message.includes('sesión inválida')) {
+         const details = {
+            denyReason: "invalid_session",
+            uid: userContext?.uid,
+            role: userContext?.role,
+          };
+         console.log('[SEED][DENY]', details);
+         return new NextResponse(
+            JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.', details }),
+            { status: 403 }
+        );
+    }
+    
+    // For all other errors, return a 500
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
     const errorDetails = error.stack || 'No stack trace available.';
     return new NextResponse(JSON.stringify({ success: false, message: `Fallo al inicializar la base de datos: ${errorMessage}`, details: errorDetails }), { status: 500 });

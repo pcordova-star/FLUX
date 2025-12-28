@@ -23,6 +23,11 @@ export default function SeedPage() {
         const result = await response.json();
 
         if (!response.ok) {
+            console.error('[Seed] Non-OK response:', {
+              status: response.status,
+              result: result,
+            });
+
             // Special handling for 409 Conflict
             if (response.status === 409) {
                 toast({
@@ -45,8 +50,12 @@ export default function SeedPage() {
         console.error("Error calling seed API:", error);
         if (error.cause) {
             console.error("Seed error details:", error.cause);
+            // We can now stringify the details object for better visibility
+            const detailsString = typeof error.cause === 'object' ? JSON.stringify(error.cause, null, 2) : error.cause;
+            setErrorDetails(detailsString);
+        } else {
+             setErrorDetails('No hay detalles adicionales. Revisa los logs del servidor.');
         }
-        setErrorDetails(error.cause || 'No hay detalles adicionales. Revisa los logs del servidor.');
         toast({
           variant: 'destructive',
           title: 'Error al Inicializar',
