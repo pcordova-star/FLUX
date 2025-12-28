@@ -20,12 +20,20 @@ export default function SeedPage() {
           method: 'POST',
         });
 
-        const result = await response.json();
-
         if (!response.ok) {
+            let result;
+            let rawText = '';
+            try {
+                result = await response.json();
+            } catch (e) {
+                rawText = await response.text();
+                console.error('[Seed] Failed to parse JSON response. Raw text:', rawText);
+            }
+            
             console.error('[Seed] Non-OK response:', {
               status: response.status,
               result: result,
+              rawText: rawText
             });
 
             // Special handling for 409 Conflict
@@ -37,10 +45,15 @@ export default function SeedPage() {
                 });
                 return; // Stop further processing
             }
-            // Throw an error for other bad responses to be caught by the catch block
-            throw new Error(result.message || `Error ${response.status}`, { cause: result.details });
+
+            const errorMessage = result?.message || rawText || `Error del servidor: ${response.status}`;
+            const errorCause = result?.details ? JSON.stringify(result.details, null, 2) : 'No hay detalles adicionales.';
+            
+            setErrorDetails(errorCause);
+            throw new Error(errorMessage);
         }
         
+        const result = await response.json();
         toast({
           title: 'Éxito',
           description: result.message,
@@ -48,14 +61,12 @@ export default function SeedPage() {
 
       } catch (error: any) {
         console.error("Error calling seed API:", error);
-        if (error.cause) {
-            console.error("Seed error details:", error.cause);
-            // We can now stringify the details object for better visibility
-            const detailsString = typeof error.cause === 'object' ? JSON.stringify(error.cause, null, 2) : error.cause;
-            setErrorDetails(detailsString);
-        } else {
-             setErrorDetails('No hay detalles adicionales. Revisa los logs del servidor.');
+        
+        // Use existing errorDetails if already set, otherwise use error.message
+        if (!errorDetails) {
+            setErrorDetails(error.message || 'No hay detalles adicionales. Revisa los logs del servidor.');
         }
+
         toast({
           variant: 'destructive',
           title: 'Error al Inicializar',

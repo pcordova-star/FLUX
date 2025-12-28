@@ -1,12 +1,10 @@
-
-
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminDb } from '@/lib/firebase-admin';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Order, OrderEvent, OrderStatus, UserRole } from '@/lib/types';
-import { getUserServerContext, type UserServerContext } from '@/lib/exports/authz';
+import { getUserServerContext } from '@/lib/exports/authz';
 
 // This is a simplified version of the seed data structure from actions.ts
 interface UserSeedData {
@@ -50,10 +48,9 @@ const addOrderWithEvents = (
 
 export async function POST(req: NextRequest) {
   try {
-    const adminDb = getAdminDb(); // This will trigger ADC initialization
+    const adminDb = getAdminDb();
     console.log("[Seed] Admin SDK initialized, proceeding with seed logic.");
 
-    // 1. Check if seeding has been performed before.
     const seedLogCollection = await adminDb.collection('seed_log').limit(1).get();
     if (!seedLogCollection.empty) {
       const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
@@ -61,27 +58,26 @@ export async function POST(req: NextRequest) {
       return new NextResponse(JSON.stringify({ ok: false, message: message }), { status: 409 });
     }
 
-    // 2. Authorization Logic - Simplified for bootstrap
     const companiesSnap = await adminDb.collection('companies').limit(1).get();
     const noCompaniesExist = companiesSnap.empty;
 
     const userContext = await getUserServerContext(req);
-    const role = userContext?.role ?? null;
+    const role = userContext?.appUser?.role ?? null;
     const isBootstrapAllowed = noCompaniesExist;
     const isAdmin = role === 'admin' || role === 'super_admin';
-
+    
     console.log('[SEED][AUTH] Context:', {
-      uid: userContext?.uid,
-      role: userContext?.role,
-      isBootstrapAllowed,
-      isAdmin,
+        uid: userContext?.uid,
+        role: userContext?.appUser?.role,
+        isBootstrapAllowed,
+        isAdmin,
     });
 
     if (!isBootstrapAllowed && !isAdmin) {
       const details = {
         denyReason: 'companies_exist_requires_admin',
         uid: userContext?.uid,
-        role: userContext?.role,
+        role: userContext?.appUser?.role,
       };
       console.log('[SEED][DENY]', details);
       return new NextResponse(
@@ -90,7 +86,6 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // --- If authorization passes, proceed with seeding ---
     console.log('[SEED] Authorization passed. Proceeding.');
     
     const now = Timestamp.now();
@@ -99,13 +94,11 @@ export async function POST(req: NextRequest) {
     
     const batch = adminDb.batch();
 
-    // 1. Company
     const companyId = 'flux_demo_company';
     const companyRef = adminDb.collection('companies').doc(companyId);
     batch.set(companyRef, { name: 'FLUX Demo Company', createdAt: now, demoDataLoaded: true });
     console.log(`[SEED] Prepared: Company '${companyId}'`);
 
-    // 2. Users and Auth
     const usersToSeed: UserSeedData[] = [
       { uid: 'admin_user_id', email: 'admin@demo.com', displayName: 'Admin Demo', role: 'admin' },
       { uid: 'operator_user_id', email: 'operator@demo.com', displayName: 'Operator Demo', role: 'operator' },
@@ -117,13 +110,11 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[SEED] Prepared: ${usersToSeed.length} users`);
 
-    // 3. Warehouse
     const warehouseId = 'wh_demo_scl';
     const warehouseRef = adminDb.collection('warehouses').doc(warehouseId);
     batch.set(warehouseRef, { name: 'Almacén Principal (Demo)', companyId, createdAt: now });
     console.log(`[SEED] Prepared: Warehouse '${warehouseId}'`);
 
-    // 4. Products and Inventory
     const products = [
       { name: 'Laptop Pro X1', sku: 'LAP-PRO-X1', stock: 50 },
       { name: 'Monitor Curvo 27"', sku: 'MON-CUR-27', stock: 8 },
@@ -144,7 +135,6 @@ export async function POST(req: NextRequest) {
     }
     console.log(`[SEED] Prepared: ${products.length} products and inventory balances.`);
 
-    // 5. Orders
     const adminUserId = usersToSeed[0].uid;
     addOrderWithEvents(batch, companyId, warehouseId, adminUserId,
       { orderNumber: 'DEMO-1001', clientId: 'default', priority: 'scheduled', status: 'delivered', promiseAt: Timestamp.fromMillis(now.toMillis() - 86400000 * 2), items: [{ sku: 'LAP-PRO-X1', qty: 1 }] },
@@ -156,7 +146,6 @@ export async function POST(req: NextRequest) {
     );
     console.log('[SEED] Prepared: 2 orders with events.');
 
-    // 6. KPI Snapshot
     const kpiRef = adminDb.collection('kpi_snapshots').doc(companyId);
     batch.set(kpiRef, {
       companyId, ordersToday: 2, ordersInProgress: 1, ordersDelayed: 0,
@@ -164,7 +153,6 @@ export async function POST(req: NextRequest) {
     });
     console.log('[SEED] Prepared: KPI Snapshot.');
 
-    // 7. Log Seed Operation
     batch.set(seedLogRef, {
       seededAt: now,
       status: 'success',
@@ -181,12 +169,22 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('[SEED][ERROR]', error);
     
-    // For all other errors, including admin init failures
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+    const errorDetails = String(error);
+    
+    // Check for specific credential/metadata errors to provide a more helpful message
+    if (errorDetails.toLowerCase().includes('metadata') || errorDetails.toLowerCase().includes('access token')) {
+       return new NextResponse(JSON.stringify({ 
+        ok: false, 
+        message: `Fallo en la inicialización de Admin SDK. Revisa las credenciales del entorno de desarrollo (FIREBASE_ADMIN_SERVICE_ACCOUNT).`, 
+        details: errorDetails
+       }), { status: 500 });
+    }
+
     return new NextResponse(JSON.stringify({ 
         ok: false, 
         message: `Error en la inicialización: ${errorMessage}`, 
-        details: String(error) 
+        details: errorDetails
     }), { status: 500 });
   }
 }
