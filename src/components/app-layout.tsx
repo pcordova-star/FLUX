@@ -48,8 +48,8 @@ const navItems = [
   { href: '/orders', label: 'Pedidos', icon: ShoppingCart, requiredRole: 'viewer' },
   { href: '/inventory', label: 'Inventario', icon: Package, requiredRole: 'viewer' },
   { href: '/audit', label: 'Auditoría', icon: BookText, requiredRole: 'operator' },
-  { href: '/warehouses', label: 'Almacenes', icon: Warehouse, requiredRole: 'admin' },
   { href: '/products', label: 'Productos', icon: Box, requiredRole: 'admin' },
+  { href: '/warehouses', label: 'Almacenes', icon: Warehouse, requiredRole: 'admin' },
   { href: '/users', label: 'Usuarios', icon: Users, requiredRole: 'admin' },
 ];
 
@@ -65,9 +65,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     
     // Route protection based on role
     if (!loading && user && appUser) {
-      if (pathname.startsWith('/admin') && !can(role, 'admin:view:console')) {
-        router.replace('/dashboard');
-      }
+        const currentItem = navItems.find(item => pathname.startsWith(item.href));
+        if (currentItem && !can(role, currentItem.requiredRole as any)) {
+             console.warn(`[AuthGuard] Role '${role}' trying to access '${pathname}'. Redirecting.`);
+             router.replace('/dashboard');
+        }
+        if (pathname.startsWith('/admin') && !can(role, 'admin:view:console')) {
+            router.replace('/dashboard');
+        }
     }
   }, [user, appUser, role, loading, router, pathname]);
 
@@ -102,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => (
-                can(role, item.requiredRole) && (
+                can(role, item.requiredRole as any) && (
                     <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
                         isActive={pathname.startsWith(item.href)}

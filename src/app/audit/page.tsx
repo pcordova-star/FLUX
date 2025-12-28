@@ -10,19 +10,25 @@ import { DatePickerWithRange } from '@/components/audit/date-picker-with-range';
 import { DateRange } from 'react-day-picker';
 import { addDays, format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/context/auth-context';
+import { can } from '@/lib/permissions';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+
 
 type ExportType = 'inventory-ledger' | 'orders';
 
 export default function AuditPage() {
-    const [dateRange, setDateRange = useState<DateRange | undefined>({
+    const { role } = useAuth();
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({
         from: addDays(new Date(), -30),
         to: new Date(),
     });
-    const [isLoading, setIsLoading = useState<ExportType | null>(null);
+    const [isLoading, setIsLoading] = useState<string | null>(null);
     const { toast } = useToast();
 
     const handleExport = async (type: ExportType, format: 'csv' | 'xlsx') => {
-        setIsLoading(type);
+        const loadingKey = `${type}-${format}`;
+        setIsLoading(loadingKey);
         try {
             const params = new URLSearchParams();
             params.append('format', format);
@@ -75,6 +81,8 @@ export default function AuditPage() {
             setIsLoading(null);
         }
     };
+    
+    const canExportXlsx = can(role, 'admin:view:console');
 
     const renderExportCard = (type: ExportType, title: string, description: string) => (
         <Card>
@@ -89,18 +97,31 @@ export default function AuditPage() {
                 <Button 
                     variant="secondary"
                     onClick={() => handleExport(type, 'csv')}
-                    disabled={isLoading === type}
+                    disabled={isLoading === `${type}-csv`}
                 >
-                    {isLoading === type ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                    {isLoading === `${type}-csv` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     Exportar a CSV
                 </Button>
-                <Button
-                    onClick={() => handleExport(type, 'xlsx')}
-                    disabled={isLoading === type}
-                >
-                    {isLoading === type ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-                    Exportar a Excel
-                </Button>
+                <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={canExportXlsx ? undefined : 0}>
+                                <Button
+                                    onClick={() => handleExport(type, 'xlsx')}
+                                    disabled={isLoading === `${type}-xlsx` || !canExportXlsx}
+                                >
+                                    {isLoading === `${type}-xlsx` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                    Exportar a Excel
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                         {!canExportXlsx && (
+                            <TooltipContent>
+                                <p>Disponible para roles de Operador o superior.</p>
+                            </TooltipContent>
+                        )}
+                    </Tooltip>
+                </TooltipProvider>
             </CardFooter>
         </Card>
     );
@@ -115,7 +136,7 @@ export default function AuditPage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Filtros Globales de Exportación</CardTitle>
-                        <CardDescription>Define el rango de fechas para todos los informes que generes desde esta página.</CardDescription>
+                        <CardDescription>Define el rango de fechas para todos los informes que generes desde esta página. Los exportes grandes pueden demorar; usa rangos acotados.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-2">

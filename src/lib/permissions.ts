@@ -16,7 +16,7 @@ export const ACTIONS = [
   'product:read',
   'product:edit', // Crear, actualizar, eliminar
   'warehouse:read',
-  'warehouse:edit',
+a'warehouse:edit',
   
   // Administración y Auditoría
   'user:manage', // Crear, actualizar, desactivar usuarios
@@ -48,6 +48,7 @@ const adminPermissions: Action[] = [
   'product:edit',
   'warehouse:edit',
   'user:manage',
+  'admin:view:console',
 ];
 
 // Define los permisos para cada rol. Los roles superiores heredan los permisos de los inferiores.
