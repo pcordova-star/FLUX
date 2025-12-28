@@ -1,6 +1,5 @@
 'use server';
 
-import 'dotenv/config'; // Carga las variables de entorno desde .env
 import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { Timestamp } from 'firebase-admin/firestore';
