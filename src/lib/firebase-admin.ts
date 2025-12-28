@@ -12,10 +12,34 @@ function getAdminApp(): App {
     return getApps()[0]!;
   }
   
-  // In a Google Cloud environment (like App Hosting or Firebase Studio),
-  // initializeApp() automatically uses Application Default Credentials.
-  console.log("[Firebase Admin] Initializing with Application Default Credentials.");
-  return initializeApp();
+  // Force initialization with explicit service account credentials.
+  // This is the required method for environments like Firebase Studio/Workstations
+  // that do not have access to the GCP metadata server for ADC.
+  const projectId = process.env.FIREBASE_PROJECT_ID;
+  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+
+  if (!projectId || !clientEmail || !privateKey) {
+      throw new Error(
+        "Missing Firebase Admin credentials. Ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set."
+      );
+  }
+  
+  if (!privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
+    throw new Error("Invalid FIREBASE_PRIVATE_KEY: PEM format must include '-----BEGIN PRIVATE KEY-----'.");
+  }
+  if (!privateKey.includes("-----END PRIVATE KEY-----")) {
+      throw new Error("Invalid FIREBASE_PRIVATE_KEY: PEM format must include '-----END PRIVATE KEY-----'.");
+  }
+
+  console.log('[Firebase Admin] Initializing with explicit service account credentials.');
+  return initializeApp({
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey,
+    })
+  });
 }
 
 // Lazy getters for Firestore and Auth services

@@ -1,3 +1,4 @@
+
 'use server';
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -47,10 +48,12 @@ const addOrderWithEvents = (
 };
 
 export async function POST(req: NextRequest) {
-  const adminDb = getAdminDb();
   let userContext: UserServerContext | null = null;
   
   try {
+    console.log("[Seed][AdminInit] Using explicit service account auth");
+    const adminDb = getAdminDb();
+
     // 1. Get user context
     userContext = await getUserServerContext(req);
 
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest) {
     if (!seedLogCollection.empty) {
       const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
       console.warn(`[SEED][DENY] ${message}`);
-      return new NextResponse(JSON.stringify({ success: false, message: message }), { status: 409 });
+      return new NextResponse(JSON.stringify({ ok: false, message: message }), { status: 409 });
     }
 
     // 3. Authorization Logic
@@ -90,7 +93,7 @@ export async function POST(req: NextRequest) {
       };
       console.log('[SEED][DENY]', details);
       return new NextResponse(
-        JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.', details }),
+        JSON.stringify({ ok: false, message: 'No tienes permiso para realizar esta acción.', details }),
         { status: 403 }
       );
     }
@@ -181,28 +184,27 @@ export async function POST(req: NextRequest) {
     
     console.log('[SEED] Batch commit successful.');
 
-    return new NextResponse(JSON.stringify({ success: true, message: 'Base de datos inicializada correctamente con datos de demostración.' }), { status: 200 });
+    return new NextResponse(JSON.stringify({ ok: true, message: 'Base de datos inicializada correctamente con datos de demostración.' }), { status: 200 });
 
   } catch (error: any) {
     console.error('[SEED][ERROR]', error);
     
-    // If the error is due to auth, return a 403
-    if (error.message.includes('No autorizado') || error.message.includes('sesión inválida')) {
-         const details = {
-            denyReason: "invalid_session",
-            uid: userContext?.uid,
-            role: userContext?.role,
-          };
-         console.log('[SEED][DENY]', details);
-         return new NextResponse(
-            JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.', details }),
+    // For auth/permission errors that we throw deliberately
+    if (error.message.includes('No autorizado')) {
+        const details = { denyReason: "invalid_session", uid: userContext?.uid, role: userContext?.role };
+        console.log('[SEED][DENY]', details);
+        return new NextResponse(
+            JSON.stringify({ ok: false, message: 'No tienes permiso para realizar esta acción.', details }),
             { status: 403 }
         );
     }
     
-    // For all other errors, return a 500
+    // For all other errors, including admin init failures
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
-    const errorDetails = error.stack || 'No stack trace available.';
-    return new NextResponse(JSON.stringify({ success: false, message: `Fallo al inicializar la base de datos: ${errorMessage}`, details: errorDetails }), { status: 500 });
+    return new NextResponse(JSON.stringify({ 
+        ok: false, 
+        message: `Admin credentials failure: ${errorMessage}`, 
+        details: String(error) 
+    }), { status: 500 });
   }
 }
