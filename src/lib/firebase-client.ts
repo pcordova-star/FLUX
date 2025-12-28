@@ -14,46 +14,62 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID
 };
 
-// --- Lazy Getters for Firebase Services ---
+// --- Singleton Getters for Firebase Services ---
 
-let app: FirebaseApp;
-let auth: Auth;
-let firestore: Firestore;
-let storage: Storage;
+// Extend the global type to avoid TypeScript errors
+declare global {
+  var __FLUX_FB_APP__: FirebaseApp | undefined;
+  var __FLUX_FB_AUTH__: Auth | undefined;
+  var __FLUX_FB_DB__: Firestore | undefined;
+  var __FLUX_FB_STORAGE__: Storage | undefined;
+}
 
 function getFirebaseApp(): FirebaseApp {
+  if (globalThis.__FLUX_FB_APP__) {
+    return globalThis.__FLUX_FB_APP__;
+  }
+
   if (getApps().length > 0) {
-    return getApps()[0]!;
+    globalThis.__FLUX_FB_APP__ = getApps()[0];
+    return globalThis.__FLUX_FB_APP__!;
   }
   
   if (!firebaseConfig.projectId) {
       console.warn("[FirebaseDiag] ⚠️ Firebase config values are undefined. App cannot be initialized.");
   }
   
-  app = initializeApp(firebaseConfig);
-  console.log("[FirebaseDiag] Client App Initialized:", { projectId: app.options.projectId });
+  const app = initializeApp(firebaseConfig);
+  console.log("[FB] init app once", { projectId: app.options.projectId });
+  globalThis.__FLUX_FB_APP__ = app;
   return app;
 }
 
 
 function getFirebaseAuth(): Auth {
-  if (!auth) {
-    auth = getAuth(getFirebaseApp());
+  if (globalThis.__FLUX_FB_AUTH__) {
+    return globalThis.__FLUX_FB_AUTH__;
   }
+  const auth = getAuth(getFirebaseApp());
+  globalThis.__FLUX_FB_AUTH__ = auth;
   return auth;
 }
 
 function getFirebaseFirestore(): Firestore {
-  if (!firestore) {
-    firestore = getFirestore(getFirebaseApp());
+  if (globalThis.__FLUX_FB_DB__) {
+    return globalThis.__FLUX_FB_DB__;
   }
-  return firestore;
+  const db = getFirestore(getFirebaseApp());
+  console.log("[FB] init db once");
+  globalThis.__FLUX_FB_DB__ = db;
+  return db;
 }
 
 function getFirebaseStorage(): Storage {
-  if (!storage) {
-    storage = getStorage(getFirebaseApp());
+  if (globalThis.__FLUX_FB_STORAGE__) {
+    return globalThis.__FLUX_FB_STORAGE__;
   }
+  const storage = getStorage(getFirebaseApp());
+  globalThis.__FLUX_FB_STORAGE__ = storage;
   return storage;
 }
 

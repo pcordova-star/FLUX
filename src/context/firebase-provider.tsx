@@ -19,6 +19,11 @@ interface IFirebaseContext {
 
 const FirebaseContext = React.createContext<IFirebaseContext | null>(null);
 
+// Use a global promise to ensure persistence is only enabled once.
+declare global {
+  var __FLUX_FB_PERSIST_PROMISE__: Promise<void> | undefined;
+}
+
 export interface FirebaseProviderProps {
   children: React.ReactNode;
 }
@@ -27,7 +32,7 @@ export function FirebaseProvider({ children }: FirebaseProviderProps) {
   const [firebaseContext, setFirebaseContext] = React.useState<IFirebaseContext | null>(null);
 
   React.useEffect(() => {
-    // Initialize Firebase services on the client
+    // Initialize Firebase services on the client using singleton getters
     const app = getFirebaseApp();
     const auth = getFirebaseAuth();
     const firestore = getFirebaseFirestore();
@@ -35,16 +40,24 @@ export function FirebaseProvider({ children }: FirebaseProviderProps) {
     // Set the context value once services are initialized
     setFirebaseContext({ app, auth, firestore });
 
-    // Enable persistence once, on the client, after Firestore is initialized
-    enableIndexedDbPersistence(firestore)
-      .then(() => console.log("[FirebaseDiag] Firestore persistence enabled."))
-      .catch((error: any) => {
+    // --- Enable Persistence Safely ---
+    // This logic ensures persistence is only enabled once per client session.
+    if (typeof window !== 'undefined' && !globalThis.__FLUX_FB_PERSIST_PROMISE__) {
+      console.log("[FB] Attempting to enable Firestore persistence...");
+      globalThis.__FLUX_FB_PERSIST_PROMISE__ = enableIndexedDbPersistence(firestore)
+        .then(() => {
+          console.log("[FB] Firestore persistence enabled successfully.");
+        })
+        .catch((error: any) => {
           if (error.code === 'failed-precondition') {
-              console.warn("[FirebaseDiag] Firestore persistence failed: multiple tabs open.");
+            console.warn("[FB] Firestore persistence failed: multiple tabs open. App will use in-memory cache.");
           } else if (error.code === 'unimplemented') {
-              console.warn("[FirebaseDiag] Firestore persistence not available in this browser.");
+            console.warn("[FB] Firestore persistence not available in this browser. App will use in-memory cache.");
+          } else {
+            console.error("[FB] Firestore persistence error:", error);
           }
-      });
+        });
+    }
       
   }, []); // Empty dependency array ensures this runs only once on component mount
   
