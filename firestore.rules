@@ -37,8 +37,9 @@ service cloud.firestore {
     // --- Base Rules ---
     
     match /users/{userId} {
-      // Any authenticated user can create their own user document.
-      allow create: if isOwner(userId);
+      // A super_admin can create any user (for seeding).
+      // A regular authenticated user can only create their own document.
+      allow create: if isOwner(userId) || isSuperAdmin();
 
       // An admin can read any user within their own company.
       // A regular user can only read their own profile.

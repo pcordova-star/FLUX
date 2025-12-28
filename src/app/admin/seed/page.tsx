@@ -2,30 +2,43 @@
 import AppLayout from '@/components/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { seedDatabase } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import { Loader2, DatabaseZap } from 'lucide-react';
+import { Loader2, DatabaseZap, Terminal } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Terminal } from 'lucide-react';
 
 export default function SeedPage() {
   const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
   const handleSeed = () => {
+    setErrorDetails(null);
     startTransition(async () => {
-      const result = await seedDatabase();
-      if (result.success) {
+      try {
+        const response = await fetch('/api/admin/seed', {
+          method: 'POST',
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            // Throw an error to be caught by the catch block
+            throw new Error(result.message || `Error ${response.status}`, { cause: result.details });
+        }
+        
         toast({
           title: 'Éxito',
           description: result.message,
         });
-      } else {
+
+      } catch (error: any) {
+        console.error("Error calling seed API:", error);
+        setErrorDetails(error.cause || 'No hay detalles adicionales. Revisa los logs del servidor.');
         toast({
           variant: 'destructive',
-          title: 'Error',
-          description: result.message,
+          title: 'Error al Inicializar',
+          description: error.message || 'No se pudo completar la operación.',
         });
       }
     });
@@ -52,6 +65,17 @@ export default function SeedPage() {
                 Esta operación escribe directamente en la base de datos utilizando credenciales de administrador y solo debe ser ejecutada una vez en un proyecto nuevo.
               </AlertDescription>
             </Alert>
+
+            {errorDetails && (
+                 <Alert variant="destructive">
+                    <Terminal className="h-4 w-4" />
+                    <AlertTitle>Detalles del Error del Servidor</AlertTitle>
+                    <AlertDescription className="text-xs font-mono whitespace-pre-wrap break-all">
+                        {errorDetails}
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <div className="text-sm text-muted-foreground">
               <p>
                 Al hacer clic, se crearán atómicamente:
