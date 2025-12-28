@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
   let userContext: UserServerContext | null = null;
   
   try {
+    console.log("[Seed] Admin initialized with explicit service account");
     const adminDb = getAdminDb(); // This will trigger initialization
 
     // 1. Get user context
@@ -208,5 +209,3 @@ export async function POST(req: NextRequest) {
     }), { status: 500 });
   }
 }
-
-    
