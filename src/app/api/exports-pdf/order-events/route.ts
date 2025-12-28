@@ -60,11 +60,16 @@ export async function GET(req: NextRequest) {
       { key: 'createdBy', label: 'Usuario', width: 80 },
     ];
     
-    const buffer = await buildPdf(data, columns, {
-        companyName: appUser.displayName || companyId,
-        reportTitle: `Línea de Tiempo de la Orden`,
-        reportSubtitle: `Eventos para la orden #${orderData.orderNumber || orderId}`,
-        dateRange: `Hasta ${format(new Date(), 'yyyy-MM-dd')}`
+    const buffer = await buildPdf({
+        rows: data,
+        columns,
+        meta: {
+            companyName: appUser.displayName || companyId,
+            reportTitle: `Línea de Tiempo de la Orden`,
+            reportSubtitle: `Eventos para la orden #${orderData.orderNumber || orderId}`,
+            dateRange: `Hasta ${format(new Date(), 'yyyy-MM-dd')}`
+        },
+        branding: { mode: 'corporate' }
     });
 
     return new NextResponse(buffer, {
