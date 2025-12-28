@@ -243,7 +243,7 @@ function drawNotes(doc: PDFKit.PDFDocument, notes: string[]) {
     doc.moveDown(0.5);
 
     const sanitizedNotes = notes
-        .map(note => note.replace(/[\r\n\t]+/g, ' ').trim()) // Sanitize
+        .map(note => note.replace(/[\r\n\t]+/g, ' ').trim().substring(0, 500)) // Sanitize and truncate
         .filter(note => note.length > 0);
 
     doc.font('Helvetica').fontSize(8).fillColor('#6B7280');

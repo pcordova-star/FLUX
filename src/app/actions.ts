@@ -1,6 +1,6 @@
 'use server';
 
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import { revalidatePath } from 'next/cache';
 import { Timestamp } from 'firebase-admin/firestore';
 import type { Order, OrderEvent, OrderStatus, UserRole } from '@/lib/types';
@@ -22,6 +22,7 @@ const addOrderWithEvents = (
   orderData: Omit<Order, 'id' | 'companyId' | 'warehouseId' | 'items' | 'createdAt' | 'updatedAt' | 'createdBy' | 'totalItems' | 'totalUnits'> & { items: { sku: string, qty: number }[] },
   events: Omit<OrderEvent, 'id' | 'companyId' | 'createdAt' | 'createdBy'>[]
 ) => {
+  const adminDb = getAdminDb();
   const orderRef = adminDb.collection('orders').doc();
   const totalItems = orderData.items.length;
   const totalUnits = orderData.items.reduce((sum, item) => sum + item.qty, 0);
@@ -46,6 +47,9 @@ const addOrderWithEvents = (
 
 
 export async function seedDatabase() {
+  const adminDb = getAdminDb();
+  const adminAuth = getAdminAuth();
+  
   try {
     const now = Timestamp.now();
     const SEED_ID = `seed_${now.toMillis()}`;

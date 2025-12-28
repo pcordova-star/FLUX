@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { getAdminAuth, getAdminDb } from '@/lib/firebase-admin';
 import type { AppUser, UserRole } from '@/lib/types';
 import { cookies } from 'next/headers';
 
@@ -28,8 +28,8 @@ export async function getUserServerContext(req: NextRequest): Promise<UserServer
   }
 
   try {
-    const auth = adminAuth; // Use the lazy-loaded auth instance
-    const db = adminDb; // Use the lazy-loaded db instance
+    const auth = getAdminAuth(); // Use the lazy-loaded auth instance
+    const db = getAdminDb(); // Use the lazy-loaded db instance
     
     const decodedToken = await auth.verifySessionCookie(sessionCookie, true);
     const { uid } = decodedToken;

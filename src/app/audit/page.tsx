@@ -152,7 +152,7 @@ export default function AuditPage() {
                 </TooltipProvider>
             </div>
              <p className="text-xs text-muted-foreground pt-2">
-                Los exportes CSV/Excel pueden contener hasta 10,000 registros. Los PDF están optimizados y acotados a un máximo de 2,000.
+                Los exportes CSV/Excel pueden contener hasta 10,000 registros. Los PDF están optimizados para reportes y se acotan a un máximo de 2,000.
             </p>
         </CardFooter>
     );

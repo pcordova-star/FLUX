@@ -30,11 +30,26 @@ function getAdminApp(): App {
   
   // Fallback to individual credential parts from environment variables for local/legacy setup
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKeyRaw = process.env.FIREBASE_PRIVATE_KEY || "";
   const projectId = process.env.FIREBASE_PROJECT_ID || process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
 
-  if (clientEmail && privateKey && projectId) {
+  if (clientEmail && privateKeyRaw && projectId) {
     console.log("[Firebase Admin] Initializing with individual credential environment variables.");
+    
+    // Sanitize private key
+    let privateKey = privateKeyRaw.trim();
+    privateKey = privateKey.replace(/^"|"$/g, ""); // Remove wrapping quotes
+    privateKey = privateKey.replace(/\\n/g, "\n"); // Standard newline replacement
+    privateKey = privateKey.replace(/\\\\n/g, "\n"); // Double escaped newline replacement
+
+    if (!privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
+        throw new Error("Invalid FIREBASE_PRIVATE_KEY: PEM format must include '-----BEGIN PRIVATE KEY-----'.");
+    }
+     if (!privateKey.includes("-----END PRIVATE KEY-----")) {
+        throw new Error("Invalid FIREBASE_PRIVATE_KEY: PEM format must include '-----END PRIVATE KEY-----'.");
+    }
+
+
     return initializeApp({
       credential: cert({ projectId, clientEmail, privateKey }),
       databaseURL: `https://${projectId}.firebaseio.com`,
@@ -47,15 +62,10 @@ function getAdminApp(): App {
 }
 
 // Lazy getters for Firestore and Auth services
-function getAdminDb(): Firestore {
+export function getAdminDb(): Firestore {
   return getFirestore(getAdminApp());
 }
 
-function getAdminAuth(): Auth {
+export function getAdminAuth(): Auth {
   return getAuth(getAdminApp());
 }
-
-// Export singleton instances for backward compatibility with existing imports.
-// The lazy getters ensure the app is initialized before these are accessed.
-export const adminDb = getAdminDb();
-export const adminAuth = getAdminAuth();

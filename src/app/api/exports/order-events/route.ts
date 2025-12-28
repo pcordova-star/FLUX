@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { adminDb } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { Order, OrderEvent } from '@/lib/types';
 import { getUserServerContext } from '@/lib/exports/authz';
 import { buildCsv } from '@/lib/exports/csv';
@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
       return new NextResponse(JSON.stringify({ message: 'No autorizado' }), { status: 401 });
     }
 
+    const adminDb = getAdminDb();
     const { role, companyId } = userContext;
     const { searchParams } = new URL(req.url);
     const orderId = searchParams.get('orderId');
