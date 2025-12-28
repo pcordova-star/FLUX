@@ -16,7 +16,7 @@ export const ACTIONS = [
   'product:read',
   'product:edit', // Crear, actualizar, eliminar
   'warehouse:read',
-a'warehouse:edit',
+  'warehouse:edit',
   
   // Administración y Auditoría
   'user:manage', // Crear, actualizar, desactivar usuarios
