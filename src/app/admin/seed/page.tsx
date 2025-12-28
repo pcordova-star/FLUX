@@ -52,8 +52,10 @@ export default function SeedPage() {
                 Esta operación escribe directamente en la base de datos utilizando credenciales de administrador y solo debe ser ejecutada una vez en un proyecto nuevo.
               </AlertDescription>
             </Alert>
-            <p className="text-sm text-muted-foreground">
-              Al hacer clic, se crearán atómicamente:
+            <div className="text-sm text-muted-foreground">
+              <p>
+                Al hacer clic, se crearán atómicamente:
+              </p>
               <ul className="list-disc pl-5 mt-2 space-y-1">
                 <li>Una compañía de demostración.</li>
                 <li>Tres usuarios con roles (admin, operator, viewer).</li>
@@ -62,7 +64,7 @@ export default function SeedPage() {
                 <li>Dos órdenes de ejemplo (una abierta, una completada).</li>
                 <li>Un snapshot de KPIs inicializado.</li>
               </ul>
-            </p>
+            </div>
           </CardContent>
           <CardFooter>
             <Button onClick={handleSeed} disabled={isPending}>
