@@ -52,23 +52,7 @@ export async function POST(req: NextRequest) {
   let userContext: UserServerContext | null = null;
   
   try {
-    // STEP 1: Check if environment variables are being loaded at all.
-    console.log("[Seed][EnvCheck] projectId?", !!process.env.FIREBASE_PROJECT_ID);
-    console.log("[Seed][EnvCheck] clientEmail?", !!process.env.FIREBASE_CLIENT_EMAIL);
-    console.log("[Seed][EnvCheck] privateKey?", !!process.env.FIREBASE_PRIVATE_KEY);
-    console.log("[Seed][EnvCheck] privateKey_has_BEGIN?", (process.env.FIREBASE_PRIVATE_KEY || "").includes("BEGIN PRIVATE KEY"));
-    
-    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !process.env.FIREBASE_PRIVATE_KEY) {
-      console.error("[Seed][FATAL] Server environment variables for Firebase Admin are not set.");
-      return new NextResponse(JSON.stringify({ 
-          ok: false, 
-          message: "Missing Firebase Admin environment variables on the server.",
-          details: "The server process could not find FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, or FIREBASE_PRIVATE_KEY."
-      }), { status: 500 });
-    }
-
-    console.log("[Seed][AdminInit] Using explicit service account auth");
-    const adminDb = getAdminDb();
+    const adminDb = getAdminDb(); // This will trigger initialization
 
     // 1. Get user context
     userContext = await getUserServerContext(req);
@@ -182,7 +166,7 @@ export async function POST(req: NextRequest) {
 
     // 6. KPI Snapshot
     const kpiRef = adminDb.collection('kpi_snapshots').doc(companyId);
-    batch.set(kpiPef, {
+    batch.set(kpiRef, {
       companyId, ordersToday: 2, ordersInProgress: 1, ordersDelayed: 0,
       criticalStockItems: criticalStockCount, updatedAt: now,
     });
@@ -219,7 +203,7 @@ export async function POST(req: NextRequest) {
     const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
     return new NextResponse(JSON.stringify({ 
         ok: false, 
-        message: `Admin credentials failure: ${errorMessage}`, 
+        message: `Error en la inicialización: ${errorMessage}`, 
         details: String(error) 
     }), { status: 500 });
   }

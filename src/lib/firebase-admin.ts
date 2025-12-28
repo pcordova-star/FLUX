@@ -1,45 +1,57 @@
 
 import "server-only";
-import { initializeApp, getApps, cert, type App } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, cert, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
+
+let adminApp: App | null = null;
 
 // This function ensures that we only initialize the app once,
 // making it safe to use in server-side environments like Next.js API routes or Server Actions.
 function getAdminApp(): App {
-  // If the app is already initialized, return it.
+  if (adminApp) {
+    return adminApp;
+  }
+
   if (getApps().length > 0) {
-    return getApps()[0]!;
+    adminApp = getApps()[0]!;
+    return adminApp;
   }
   
-  // Force initialization with explicit service account credentials.
-  // This is the required method for environments like Firebase Studio/Workstations
-  // that do not have access to the GCP metadata server for ADC.
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-
-  if (!projectId || !clientEmail || !privateKey) {
-      throw new Error(
-        "Missing Firebase Admin credentials. Ensure FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY are set."
-      );
-  }
+  // --- Dual-mode initialization ---
   
-  if (!privateKey.includes("-----BEGIN PRIVATE KEY-----")) {
-    throw new Error("Invalid FIREBASE_PRIVATE_KEY: PEM format must include '-----BEGIN PRIVATE KEY-----'.");
-  }
-  if (!privateKey.includes("-----END PRIVATE KEY-----")) {
-      throw new Error("Invalid FIREBASE_PRIVATE_KEY: PEM format must include '-----END PRIVATE KEY-----'.");
+  // 1. Production Mode (App Hosting / GCP Environment with ADC)
+  if (process.env.K_SERVICE || process.env.CLOUD_RUN_JOB || process.env.FUNCTION_TARGET || process.env.GOOGLE_CLOUD_PROJECT) {
+      console.log("[Firebase Admin] Initializing with Application Default Credentials (ADC).");
+      adminApp = initializeApp();
+      return adminApp;
   }
 
-  console.log('[Firebase Admin] Initializing with explicit service account credentials.');
-  return initializeApp({
-    credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
-    })
-  });
+  // 2. Local / Studio Preview Mode (using Service Account JSON)
+  if (process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT) {
+      console.log("[Firebase Admin] Initializing with FIREBASE_ADMIN_SERVICE_ACCOUNT environment variable.");
+      try {
+          const serviceAccount = JSON.parse(process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT);
+          // The private key inside the JSON might still have escaped newlines
+          const privateKey = serviceAccount.private_key?.replace(/\\n/g, '\n');
+
+          adminApp = initializeApp({
+              credential: cert({
+                  projectId: serviceAccount.project_id,
+                  clientEmail: serviceAccount.client_email,
+                  privateKey,
+              })
+          });
+          return adminApp;
+      } catch (e: any) {
+          throw new Error(`Failed to parse FIREBASE_ADMIN_SERVICE_ACCOUNT: ${e.message}`);
+      }
+  }
+
+  // 3. If neither method works, fail with a clear error
+  throw new Error(
+    "Firebase Admin SDK not configured. For App Hosting, ensure the environment is a valid GCP context. For local/Studio development, set the FIREBASE_ADMIN_SERVICE_ACCOUNT environment variable with your service account JSON."
+  );
 }
 
 // Lazy getters for Firestore and Auth services
