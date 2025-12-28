@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     const warehouseId = searchParams.get('warehouseId');
     const limit = parseInt(searchParams.get('limit') || '2000', 10);
 
-    if (format === 'xlsx' && !can(role, 'admin:view:console')) { // Assuming a higher permission for XLSX
+    if (format === 'xlsx' && !can(role, 'admin:view:console')) {
         return new NextResponse(JSON.stringify({ message: 'No tienes permiso para exportar a XLSX.' }), { status: 403 });
     }
 
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     }
     
     const snapshot = await query.get();
-    const records = snapshot.docs.map(doc => doc.data() as InventoryLedger);
+    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Omit<InventoryLedger, 'id'> }));
 
     const headers = [
       { header: 'ID', key: 'id' },
@@ -65,7 +65,6 @@ export async function GET(req: NextRequest) {
     
     const data = records.map(r => ({
       ...r,
-      id: snapshot.docs[records.indexOf(r)].id,
       createdAt: (r.createdAt as Timestamp)?.toDate().toISOString() ?? '',
       deltaQty: r.deltaQty ?? 0,
       reservedDeltaQty: r.reservedDeltaQty ?? 0,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { Order } from '@/lib/types';
+import { Order, OrderEvent } from '@/lib/types';
 import { getUserServerContext } from '@/lib/exports/authz';
 import { buildCsv } from '@/lib/exports/csv';
 import { buildExcel } from '@/lib/exports/xlsx';
@@ -16,68 +16,54 @@ export async function GET(req: NextRequest) {
 
     const { role, companyId } = userContext;
     const { searchParams } = new URL(req.url);
+    const orderId = searchParams.get('orderId');
+
+    if (!orderId) {
+        return new NextResponse(JSON.stringify({ message: 'Se requiere un ID de orden para la exportación.' }), { status: 400 });
+    }
+
+    // Security check: ensure order belongs to user's company
+    const orderDoc = await adminDb.collection('orders').doc(orderId).get();
+    if (!orderDoc.exists() || orderDoc.data()?.companyId !== companyId) {
+        return new NextResponse(JSON.stringify({ message: 'Orden no encontrada o no autorizada.' }), { status: 404 });
+    }
 
     const format = searchParams.get('format') || 'csv';
-    const from = searchParams.get('from');
-    const to = searchParams.get('to');
-    const status = searchParams.get('status');
-    const limit = parseInt(searchParams.get('limit') || '2000', 10);
+    const limit = parseInt(searchParams.get('limit') || '1000', 10);
 
     if (format === 'xlsx' && !can(role, 'admin:view:console')) {
         return new NextResponse(JSON.stringify({ message: 'No tienes permiso para exportar a XLSX.' }), { status: 403 });
     }
 
-    if (isNaN(limit) || limit <= 0 || limit > 10000) {
+    if (isNaN(limit) || limit <= 0 || limit > 5000) {
       return new NextResponse(JSON.stringify({ message: 'El parámetro "limit" es inválido.' }), { status: 400 });
     }
 
-    let query: FirebaseFirestore.Query<FirebaseFirestore.DocumentData> = adminDb
-      .collection('orders')
-      .where('companyId', '==', companyId)
+    const query = adminDb
+      .collection('orders').doc(orderId).collection('events')
       .orderBy('createdAt', 'desc')
       .limit(limit);
-
-    if (from) {
-      query = query.where('createdAt', '>=', Timestamp.fromDate(new Date(from)));
-    }
-    if (to) {
-      query = query.where('createdAt', '<=', Timestamp.fromDate(new Date(to)));
-    }
-    if (status) {
-      query = query.where('status', '==', status);
-    }
     
     const snapshot = await query.get();
-    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Omit<Order, 'id'> }));
+    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as Omit<OrderEvent, 'id'> }));
 
     const headers = [
-      { header: 'ID Orden', key: 'id' },
-      { header: 'Nº Orden', key: 'orderNumber' },
-      { header: 'Estado', key: 'status' },
-      { header: 'Almacén', key: 'warehouseId' },
-      { header: 'Fecha Creado', key: 'createdAt' },
-      { header: 'Fecha Promesa', key: 'promiseAt' },
-      { header: 'Prioridad', key: 'priority' },
-      { header: 'Total Ítems', key: 'totalItems' },
-      { header: 'Total Unidades', key: 'totalUnits' },
-      { header: 'ID Cliente', key: 'clientId' },
-      { header: 'Creado Por (UID)', key: 'createdBy' },
-      { header: 'Ítems (JSON)', key: 'itemsJson' }
+      { header: 'ID Evento', key: 'id' },
+      { header: 'Fecha', key: 'createdAt' },
+      { header: 'Tipo', key: 'type' },
+      { header: 'Mensaje', key: 'message' },
+      { header: 'Usuario', key: 'createdBy' },
     ];
     
     const data = records.map(r => ({
       ...r,
       createdAt: (r.createdAt as Timestamp)?.toDate().toISOString() ?? '',
-      promiseAt: (r.promiseAt as Timestamp)?.toDate().toISOString() ?? '',
-      itemsJson: JSON.stringify(r.items),
     }));
 
-    const fromStr = from ? new Date(from).toISOString().split('T')[0] : 'inicio';
-    const toStr = to ? new Date(to).toISOString().split('T')[0] : 'fin';
-    const filename = `flux-orders-${fromStr}-a-${toStr}`;
+    const filename = `flux-order-${orderId}-events`;
 
     if (format === 'xlsx') {
-      const buffer = await buildExcel(data, headers, 'Pedidos');
+      const buffer = await buildExcel(data, headers, 'Eventos Pedido');
       return new NextResponse(buffer, {
         status: 200,
         headers: {
@@ -87,7 +73,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const csv = buildCsv(data, headers);
+    const csv = buildCsv(data.reverse(), headers); // Chronological for CSV
     return new NextResponse(csv, {
       status: 200,
       headers: {
@@ -97,7 +83,7 @@ export async function GET(req: NextRequest) {
     });
 
   } catch (e: any) {
-    console.error('Error en exportación de pedidos:', e);
+    console.error('Error en exportación de eventos de pedido:', e);
     if (e.message.includes('No autorizado')) {
       return new NextResponse(JSON.stringify({ message: e.message }), { status: 401 });
     }
