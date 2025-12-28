@@ -169,17 +169,8 @@ export async function POST(req: NextRequest) {
   } catch (error: any) {
     console.error('[SEED][ERROR]', error);
     
-    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido.';
+    const errorMessage = error instanceof Error ? error.message : 'Ocurrió un error desconocido durante la inicialización.';
     const errorDetails = String(error);
-    
-    // Check for specific credential/metadata errors to provide a more helpful message
-    if (errorDetails.toLowerCase().includes('metadata') || errorDetails.toLowerCase().includes('access token')) {
-       return new NextResponse(JSON.stringify({ 
-        ok: false, 
-        message: `Fallo en la inicialización de Admin SDK. Revisa las credenciales del entorno de desarrollo (FIREBASE_ADMIN_SERVICE_ACCOUNT).`, 
-        details: errorDetails
-       }), { status: 500 });
-    }
 
     return new NextResponse(JSON.stringify({ 
         ok: false, 
