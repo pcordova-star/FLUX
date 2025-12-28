@@ -34,9 +34,17 @@ export async function GET(req: NextRequest) {
     if (warehouseId) query = query.where('warehouseId', '==', warehouseId);
     
     const snapshot = await query.get();
-    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as InventoryLedger);
+    const records = snapshot.docs.map(doc => {
+        const data = doc.data() as Omit<InventoryLedger, 'id'>;
+        return { 
+            id: doc.id, 
+            ...data,
+            // Serialize Timestamps
+            createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null
+        };
+    });
 
-    return NextResponse.json(records);
+    return NextResponse.json({ data: records });
 
   } catch (e: any) {
     console.error('Error en vista previa de libro mayor:', e);

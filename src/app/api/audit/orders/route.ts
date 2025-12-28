@@ -34,9 +34,20 @@ export async function GET(req: NextRequest) {
     if (status) query = query.where('status', '==', status);
     
     const snapshot = await query.get();
-    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as Order);
+    const records = snapshot.docs.map(doc => {
+        const data = doc.data() as Omit<Order, 'id'>;
+        return { 
+            id: doc.id, 
+            ...data,
+            // Serialize Timestamps
+            createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
+            updatedAt: data.updatedAt ? (data.updatedAt as Timestamp).toDate().toISOString() : null,
+            promiseAt: data.promiseAt ? (data.promiseAt as Timestamp).toDate().toISOString() : null,
+            pickedAt: data.pickedAt ? (data.pickedAt as Timestamp).toDate().toISOString() : null,
+        };
+    });
 
-    return NextResponse.json(records);
+    return NextResponse.json({ data: records });
 
   } catch (e: any) {
     console.error('Error en vista previa de pedidos:', e);

@@ -38,9 +38,17 @@ export async function GET(req: NextRequest) {
       .limit(limit);
     
     const snapshot = await query.get();
-    const records = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as OrderEvent);
+    const records = snapshot.docs.map(doc => {
+      const data = doc.data() as Omit<OrderEvent, 'id'>;
+      return { 
+        id: doc.id, 
+        ...data,
+        // Serialize Timestamps
+        createdAt: data.createdAt ? (data.createdAt as Timestamp).toDate().toISOString() : null,
+      };
+    });
 
-    return NextResponse.json(records.reverse()); // Reverse to show chronological order
+    return NextResponse.json({ data: records.reverse() }); // Reverse to show chronological order
 
   } catch (e: any) {
     console.error('Error en vista previa de eventos de pedido:', e);
