@@ -28,10 +28,13 @@ export async function getUserServerContext(req: NextRequest): Promise<UserServer
   }
 
   try {
-    const decodedToken = await adminAuth.verifySessionCookie(sessionCookie, true);
+    const auth = adminAuth; // Use the lazy-loaded auth instance
+    const db = adminDb; // Use the lazy-loaded db instance
+    
+    const decodedToken = await auth.verifySessionCookie(sessionCookie, true);
     const { uid } = decodedToken;
 
-    const userDocRef = adminDb.collection('users').doc(uid);
+    const userDocRef = db.collection('users').doc(uid);
     const userDocSnap = await userDocRef.get();
 
     if (!userDocSnap.exists) {
