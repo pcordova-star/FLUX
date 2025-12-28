@@ -18,9 +18,10 @@ export const ACTIONS = [
   'warehouse:read',
   'warehouse:edit',
   
-  // Administración
+  // Administración y Auditoría
   'user:manage', // Crear, actualizar, desactivar usuarios
   'admin:view:console', // Acceder a la consola de admin
+  'audit:export', // Exportar datos
 ] as const;
 
 export type Action = typeof ACTIONS[number];
@@ -38,6 +39,7 @@ const operatorPermissions: Action[] = [
   'order:create',
   'order:update:status',
   'inventory:move',
+  'audit:export',
 ];
 
 const adminPermissions: Action[] = [

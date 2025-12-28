@@ -27,6 +27,7 @@ import {
   LogOut,
   ShieldCheck,
   UserCircle,
+  BookText,
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -43,12 +44,13 @@ import PageSpinner from './page-spinner';
 import { can } from '@/lib/permissions';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/orders', label: 'Pedidos', icon: ShoppingCart },
-  { href: '/inventory', label: 'Inventario', icon: Package },
-  { href: '/warehouses', label: 'Almacenes', icon: Warehouse },
-  { href: '/products', label: 'Productos', icon: Box },
-  { href: '/users', label: 'Usuarios', icon: Users },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, requiredRole: 'viewer' },
+  { href: '/orders', label: 'Pedidos', icon: ShoppingCart, requiredRole: 'viewer' },
+  { href: '/inventory', label: 'Inventario', icon: Package, requiredRole: 'viewer' },
+  { href: '/audit', label: 'Auditoría', icon: BookText, requiredRole: 'operator' },
+  { href: '/warehouses', label: 'Almacenes', icon: Warehouse, requiredRole: 'admin' },
+  { href: '/products', label: 'Productos', icon: Box, requiredRole: 'admin' },
+  { href: '/users', label: 'Usuarios', icon: Users, requiredRole: 'admin' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -74,6 +76,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const handleLogout = async () => {
+    //TODO: Call server action to revoke session
     await logout();
     router.push('/login');
   };
@@ -99,17 +102,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  isActive={pathname.startsWith(item.href)}
-                  asChild
-                >
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+                can(role, item.requiredRole) && (
+                    <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                        isActive={pathname.startsWith(item.href)}
+                        asChild
+                        >
+                        <Link href={item.href}>
+                            <item.icon />
+                            <span>{item.label}</span>
+                        </Link>
+                        </SidebarMenuButton>
+                    </SidebarMenuItem>
+                )
             ))}
             {can(role, 'admin:view:console') && (
               <SidebarMenuItem>
