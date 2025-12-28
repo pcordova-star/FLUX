@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,25 +8,43 @@ import { Download, Loader2 } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { DatePickerWithRange } from '@/components/audit/date-picker-with-range';
 import { DateRange } from 'react-day-picker';
-import { addDays } from 'date-fns';
+import { addDays, startOfDay, endOfDay } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { can } from '@/lib/permissions';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Separator } from '@/components/ui/separator';
+
+import { LedgerPreviewTable } from '@/components/audit/ledger-preview-table';
+import { OrdersPreviewTable } from '@/components/audit/orders-preview-table';
+import { EventsPreviewTimeline } from '@/components/audit/events-preview-timeline';
 
 type ExportType = 'inventory-ledger' | 'orders' | 'order-events';
+type TabValue = 'ledger' | 'orders' | 'events';
 
 export default function AuditPage() {
     const { role } = useAuth();
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
-        from: addDays(new Date(), -30),
+        from: addDays(new Date(), -7),
         to: new Date(),
     });
     const [isLoading, setIsLoading] = useState<string | null>(null);
     const { toast } = useToast();
-    const [orderIdForEvents, setOrderIdForEvents] = useState('');
+    const [orderId, setOrderId] = useState('');
+    const [activeTab, setActiveTab] = useState<TabValue>('ledger');
+    
+    // Memoize the filters to prevent re-renders of preview components
+    const previewFilters = useMemo(() => ({
+        from: dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined,
+        to: dateRange?.to ? endOfDay(dateRange.to).toISOString() : undefined,
+    }), [dateRange]);
+
+    const handleOrderSelect = (selectedOrderId: string) => {
+        setOrderId(selectedOrderId);
+        setActiveTab('events');
+    };
 
     const handleExport = async (type: ExportType, format: 'csv' | 'xlsx') => {
         const loadingKey = `${type}-${format}`;
@@ -34,15 +52,14 @@ export default function AuditPage() {
         try {
             const params = new URLSearchParams();
             params.append('format', format);
-            if (dateRange?.from) params.append('from', dateRange.from.toISOString());
-            if (dateRange?.to) params.append('to', dateRange.to.toISOString());
+            if (dateRange?.from) params.append('from', startOfDay(dateRange.from).toISOString());
+            if (dateRange?.to) params.append('to', endOfDay(dateRange.to).toISOString());
             
-            // Special case for order-events export
             if (type === 'order-events') {
-                if (!orderIdForEvents) {
+                if (!orderId) {
                     throw new Error('Se requiere un ID de orden para exportar sus eventos.');
                 }
-                params.append('orderId', orderIdForEvents);
+                params.append('orderId', orderId);
             }
 
             const response = await fetch(`/api/exports/${type}?${params.toString()}`);
@@ -82,10 +99,10 @@ export default function AuditPage() {
     const canExportXlsx = can(role, 'operator');
 
     const renderExportButtons = (type: ExportType, requiresOrderId = false) => (
-        <CardFooter className="flex-col items-start gap-4">
-            <p className="text-xs text-muted-foreground">Nota: Los exportes grandes pueden demorar. Usa rangos acotados para obtener resultados más rápido.</p>
+        <CardFooter className="flex-col items-start gap-4 bg-muted/50 border-t">
+            <p className="text-xs text-muted-foreground pt-4">Los exportes grandes pueden demorar. Usa rangos de fecha acotados para obtener resultados más rápido.</p>
             <div className="flex justify-end gap-2 w-full">
-                <Button variant="secondary" onClick={() => handleExport(type, 'csv')} disabled={isLoading === `${type}-csv` || (requiresOrderId && !orderIdForEvents)}>
+                <Button variant="secondary" onClick={() => handleExport(type, 'csv')} disabled={isLoading === `${type}-csv` || (requiresOrderId && !orderId)}>
                     {isLoading === `${type}-csv` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                     Exportar a CSV
                 </Button>
@@ -93,7 +110,7 @@ export default function AuditPage() {
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span tabIndex={canExportXlsx ? undefined : 0}>
-                                <Button onClick={() => handleExport(type, 'xlsx')} disabled={isLoading === `${type}-xlsx` || !canExportXlsx || (requiresOrderId && !orderIdForEvents)}>
+                                <Button onClick={() => handleExport(type, 'xlsx')} disabled={isLoading === `${type}-xlsx` || !canExportXlsx || (requiresOrderId && !orderId)}>
                                     {isLoading === `${type}-xlsx` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                                     Exportar a Excel
                                 </Button>
@@ -115,8 +132,8 @@ export default function AuditPage() {
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>Filtros Globales de Exportación</CardTitle>
-                        <CardDescription>Define el rango de fechas para las exportaciones. Por defecto, se exportarán los últimos 30 días.</CardDescription>
+                        <CardTitle>Filtros Globales</CardTitle>
+                        <CardDescription>Define el rango de fechas para las vistas previas y exportaciones. Por defecto, se consultan los últimos 7 días.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <div className="grid gap-2">
@@ -126,7 +143,7 @@ export default function AuditPage() {
                     </CardContent>
                 </Card>
 
-                <Tabs defaultValue="ledger">
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as TabValue)} className="space-y-4">
                     <TabsList className="grid w-full grid-cols-3">
                         <TabsTrigger value="ledger">Movimientos</TabsTrigger>
                         <TabsTrigger value="orders">Pedidos</TabsTrigger>
@@ -135,34 +152,40 @@ export default function AuditPage() {
                     
                     <TabsContent value="ledger">
                         <Card>
-                            <CardHeader><CardTitle>Exportar Libro Mayor de Inventario</CardTitle></CardHeader>
+                            <CardHeader><CardTitle>Vista Previa de Movimientos de Inventario</CardTitle></CardHeader>
                             <CardContent>
-                                <p className="text-sm text-muted-foreground">
-                                    Descarga un registro detallado de todos los movimientos de inventario (entradas, salidas, ajustes, transferencias) dentro del rango de fechas seleccionado.
+                                <p className="text-sm text-muted-foreground -mt-4 mb-4">
+                                    Últimos movimientos registrados en el libro mayor de inventario.
                                 </p>
+                                <LedgerPreviewTable filters={previewFilters} />
                             </CardContent>
+                            <Separator />
+                            <CardHeader className="pb-2 pt-6"><CardTitle className="text-lg">Exportar Libro Mayor</CardTitle></CardHeader>
                             {renderExportButtons('inventory-ledger')}
                         </Card>
                     </TabsContent>
                     
                     <TabsContent value="orders">
                         <Card>
-                            <CardHeader><CardTitle>Exportar Pedidos</CardTitle></CardHeader>
+                             <CardHeader><CardTitle>Vista Previa de Pedidos</CardTitle></CardHeader>
                             <CardContent>
-                                <p className="text-sm text-muted-foreground">
-                                    Descarga un listado de todos los pedidos creados en el rango de fechas, incluyendo sus detalles principales.
+                                <p className="text-sm text-muted-foreground -mt-4 mb-4">
+                                    Últimos pedidos creados en el sistema. Haz clic en una fila para ver sus eventos.
                                 </p>
+                                <OrdersPreviewTable filters={previewFilters} onOrderSelect={handleOrderSelect} />
                             </CardContent>
+                            <Separator />
+                            <CardHeader className="pb-2 pt-6"><CardTitle className="text-lg">Exportar Pedidos</CardTitle></CardHeader>
                             {renderExportButtons('orders')}
                         </Card>
                     </TabsContent>
                     
                     <TabsContent value="events">
                         <Card>
-                            <CardHeader><CardTitle>Exportar Eventos de un Pedido Específico</CardTitle></CardHeader>
-                            <CardContent className="space-y-4">
-                               <p className="text-sm text-muted-foreground">
-                                    Introduce el ID de una orden para descargar la línea de tiempo completa de sus eventos (creación, picking, empaque, etc.).
+                             <CardHeader><CardTitle>Vista Previa de Eventos de Pedido</CardTitle></CardHeader>
+                             <CardContent className="space-y-4">
+                               <p className="text-sm text-muted-foreground -mt-4">
+                                    Introduce el ID de una orden para ver su línea de tiempo completa de eventos.
                                 </p>
                                 <div className="max-w-sm">
                                     <Label htmlFor="orderId">ID de la Orden</Label>
@@ -170,12 +193,15 @@ export default function AuditPage() {
                                         id="orderId"
                                         type="text" 
                                         placeholder="Introduce el ID exacto de la orden" 
-                                        value={orderIdForEvents}
-                                        onChange={(e) => setOrderIdForEvents(e.target.value)}
+                                        value={orderId}
+                                        onChange={(e) => setOrderId(e.target.value)}
                                     />
                                 </div>
+                                {orderId && <EventsPreviewTimeline orderId={orderId} />}
                             </CardContent>
-                             {renderExportButtons('order-events', true)}
+                            <Separator />
+                            <CardHeader className="pb-2 pt-6"><CardTitle className="text-lg">Exportar Eventos de Pedido</CardTitle></CardHeader>
+                            {renderExportButtons('order-events', true)}
                         </Card>
                     </TabsContent>
                 </Tabs>
