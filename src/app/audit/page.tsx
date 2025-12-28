@@ -22,6 +22,7 @@ import { OrdersPreviewTable } from '@/components/audit/orders-preview-table';
 import { EventsPreviewTimeline } from '@/components/audit/events-preview-timeline';
 
 type ExportType = 'inventory-ledger' | 'orders' | 'order-events';
+type ExportFormat = 'csv' | 'xlsx' | 'pdf';
 type TabValue = 'ledger' | 'orders' | 'events';
 
 // Custom hook for debouncing
@@ -62,7 +63,7 @@ export default function AuditPage() {
         setActiveTab('events');
     };
 
-    const handleExport = async (type: ExportType, format: 'csv' | 'xlsx') => {
+    const handleExport = async (type: ExportType, format: ExportFormat) => {
         const loadingKey = `${type}-${format}`;
         setIsLoading(loadingKey);
         try {
@@ -79,7 +80,8 @@ export default function AuditPage() {
                 params.append('orderId', orderId);
             }
 
-            const response = await fetch(`/api/exports/${type}?${params.toString()}`);
+            const apiPath = format === 'pdf' ? `/api/exports-pdf/${type}` : `/api/exports/${type}`;
+            const response = await fetch(`${apiPath}?${params.toString()}`);
 
             if (!response.ok) {
                 const errorData = await response.json();
@@ -113,7 +115,7 @@ export default function AuditPage() {
         }
     };
     
-    const canExportXlsx = can(role, 'operator');
+    const canExportXlsxOrPdf = can(role, 'operator');
 
     const renderExportButtons = (type: ExportType, requiresOrderId = false) => (
         <CardFooter className="flex-col items-start gap-4 bg-muted/50 border-t">
@@ -126,14 +128,27 @@ export default function AuditPage() {
                 <TooltipProvider>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <span tabIndex={canExportXlsx ? undefined : 0}>
-                                <Button onClick={() => handleExport(type, 'xlsx')} disabled={isLoading === `${type}-xlsx` || !canExportXlsx || (requiresOrderId && !orderId)}>
+                            <span tabIndex={canExportXlsxOrPdf ? undefined : 0}>
+                                <Button onClick={() => handleExport(type, 'xlsx')} disabled={isLoading === `${type}-xlsx` || !canExportXlsxOrPdf || (requiresOrderId && !orderId)}>
                                     {isLoading === `${type}-xlsx` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                                     Exportar a Excel
                                 </Button>
                             </span>
                         </TooltipTrigger>
-                        {!canExportXlsx && <TooltipContent><p>Requiere rol de Operador o superior.</p></TooltipContent>}
+                        {!canExportXlsxOrPdf && <TooltipContent><p>Requiere rol de Operador o superior.</p></TooltipContent>}
+                    </Tooltip>
+                </TooltipProvider>
+                 <TooltipProvider>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span tabIndex={canExportXlsxOrPdf ? undefined : 0}>
+                                <Button onClick={() => handleExport(type, 'pdf')} disabled={isLoading === `${type}-pdf` || !canExportXlsxOrPdf || (requiresOrderId && !orderId)}>
+                                    {isLoading === `${type}-pdf` ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                                    Exportar a PDF
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        {!canExportXlsxOrPdf && <TooltipContent><p>Requiere rol de Operador o superior.</p></TooltipContent>}
                     </Tooltip>
                 </TooltipProvider>
             </div>
