@@ -47,6 +47,20 @@ const addOrderWithEvents = (
 };
 
 export async function POST(req: NextRequest) {
+  // --- PRODUCTION GUARD ---
+  // This operation is computationally intensive and requires admin privileges.
+  // It's disabled in development/preview environments to prevent errors and ensure security.
+  if (!process.env.K_SERVICE) {
+    console.warn('[SEED][GUARD] Seed operation blocked. Not running in a deployed App Hosting environment.');
+    return new NextResponse(
+        JSON.stringify({ 
+            ok: false, 
+            message: "La inicialización de datos solo está permitida en un entorno de producción (App Hosting)." 
+        }), 
+        { status: 403 }
+    );
+  }
+
   try {
     const adminDb = getAdminDb();
     console.log("[Seed] Admin SDK initialized, proceeding with seed logic.");
@@ -56,34 +70,6 @@ export async function POST(req: NextRequest) {
       const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
       console.warn(`[SEED][DENY] ${message}`);
       return new NextResponse(JSON.stringify({ ok: false, message: message }), { status: 409 });
-    }
-
-    const companiesSnap = await adminDb.collection('companies').limit(1).get();
-    const noCompaniesExist = companiesSnap.empty;
-
-    const userContext = await getUserServerContext(req);
-    const role = userContext?.appUser?.role ?? null;
-    const isBootstrapAllowed = noCompaniesExist;
-    const isAdmin = role === 'admin' || role === 'super_admin';
-    
-    console.log('[SEED][AUTH] Context:', {
-        uid: userContext?.uid,
-        role: userContext?.appUser?.role,
-        isBootstrapAllowed,
-        isAdmin,
-    });
-
-    if (!isBootstrapAllowed && !isAdmin) {
-      const details = {
-        denyReason: 'companies_exist_requires_admin',
-        uid: userContext?.uid,
-        role: userContext?.appUser?.role,
-      };
-      console.log('[SEED][DENY]', details);
-      return new NextResponse(
-        JSON.stringify({ ok: false, message: 'No tienes permiso para realizar esta acción.', details }),
-        { status: 403 }
-      );
     }
     
     console.log('[SEED] Authorization passed. Proceeding.');

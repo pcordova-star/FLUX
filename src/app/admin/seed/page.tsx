@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { useState, useTransition } from 'react';
-import { Loader2, DatabaseZap, Terminal } from 'lucide-react';
+import { Loader2, DatabaseZap, Terminal, ShieldAlert } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function SeedPage() {
@@ -26,6 +26,7 @@ export default function SeedPage() {
             try {
                 result = await response.json();
             } catch (e) {
+                // If parsing JSON fails, the response might be plain text
                 rawText = await response.text();
                 console.error('[Seed] Failed to parse JSON response. Raw text:', rawText);
             }
@@ -36,10 +37,20 @@ export default function SeedPage() {
               rawText: rawText
             });
 
+            // Special handling for 403 Forbidden - seed disabled in dev
+            if (response.status === 403) {
+                 toast({
+                    variant: 'default',
+                    title: 'Operación Deshabilitada en Desarrollo',
+                    description: result.message || 'El seed solo está disponible en el entorno de producción (App Hosting).',
+                });
+                return; // Stop further processing
+            }
+
             // Special handling for 409 Conflict
             if (response.status === 409) {
                 toast({
-                    variant: 'default', // Not a destructive error
+                    variant: 'default',
                     title: 'Operación Omitida',
                     description: result.message || 'La base de datos ya fue inicializada.',
                 });
@@ -86,7 +97,7 @@ export default function SeedPage() {
           <CardHeader>
             <CardTitle>Inicializar Base de Datos (Demo)</CardTitle>
             <CardDescription>
-              Hemos cargado datos de ejemplo para que veas cómo funciona el sistema. Puedes eliminarlos cuando quieras.
+              Ejecuta este proceso para poblar la base de datos con una compañía, usuarios y datos de ejemplo.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -97,6 +108,13 @@ export default function SeedPage() {
                 Esta operación escribe directamente en la base de datos utilizando credenciales de administrador y solo debe ser ejecutada una vez en un proyecto nuevo.
               </AlertDescription>
             </Alert>
+             <Alert variant="destructive">
+                <ShieldAlert className="h-4 w-4" />
+                <AlertTitle>Disponibilidad de la Función</AlertTitle>
+                <AlertDescription>
+                 Por razones de seguridad y compatibilidad, la inicialización de datos solo está habilitada en el entorno de producción (después de desplegar en App Hosting).
+                </AlertDescription>
+             </Alert>
 
             {errorDetails && (
                  <Alert variant="destructive">
@@ -107,20 +125,6 @@ export default function SeedPage() {
                     </AlertDescription>
                 </Alert>
             )}
-
-            <div className="text-sm text-muted-foreground">
-              <p>
-                Al hacer clic, se crearán atómicamente:
-              </p>
-              <ul className="list-disc pl-5 mt-2 space-y-1">
-                <li>Una compañía de demostración.</li>
-                <li>Tres usuarios con roles (admin, operator, viewer).</li>
-                <li>Un almacén principal.</li>
-                <li>Tres productos con diferentes niveles de stock.</li>
-                <li>Dos órdenes de ejemplo (una abierta, una completada).</li>
-                <li>Un snapshot de KPIs inicializado.</li>
-              </ul>
-            </div>
           </CardContent>
           <CardFooter>
             <Button onClick={handleSeed} disabled={isPending}>

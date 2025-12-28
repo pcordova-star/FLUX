@@ -1,56 +1,36 @@
 import "server-only";
-import { initializeApp, getApps, getApp, type App, cert, applicationDefault } from "firebase-admin/app";
+import { initializeApp, getApps, getApp, type App } from "firebase-admin/app";
 import { getFirestore, type Firestore } from "firebase-admin/firestore";
 import { getAuth, type Auth } from "firebase-admin/auth";
 
+// This file is designed for server-side use ONLY.
+// It uses a singleton pattern to ensure the Firebase Admin app is initialized only once.
+
 let adminApp: App | null = null;
 
+/**
+ * Returns a singleton instance of the Firebase Admin App.
+ * It relies on Application Default Credentials (ADC) provided by the Google Cloud environment (e.g., App Hosting).
+ * This function will NOT work in a local environment unless `gcloud auth application-default login` has been run.
+ * For Firebase Studio, which does not provide ADC, this will fail, and seeding operations are disabled.
+ */
 function getAdminApp(): App {
   if (adminApp) {
     return adminApp;
   }
 
+  // If the app is already initialized (e.g., by another part of the runtime), reuse it.
   if (getApps().length > 0) {
     adminApp = getApp();
     return adminApp;
   }
 
-  // Prioritize explicit service account for dev/studio environments
-  const serviceAccountJson = process.env.FIREBASE_ADMIN_SERVICE_ACCOUNT;
-  if (serviceAccountJson) {
-    console.log('[FirebaseAdmin] Initializing with explicit service account (FIREBASE_ADMIN_SERVICE_ACCOUNT).');
-    try {
-      const serviceAccount = JSON.parse(serviceAccountJson);
-      // Normalize the private key if it's escaped
-      const privateKey = serviceAccount.private_key.includes('\\n')
-        ? serviceAccount.private_key.replace(/\\n/g, '\n')
-        : serviceAccount.private_key;
-
-      adminApp = initializeApp({
-        credential: cert({
-          projectId: serviceAccount.project_id,
-          clientEmail: serviceAccount.client_email,
-          privateKey: privateKey,
-        }),
-      });
-      return adminApp;
-    } catch (e: any) {
-      console.error('[FirebaseAdmin] Failed to parse or use FIREBASE_ADMIN_SERVICE_ACCOUNT.', e);
-      throw new Error(`Failed to initialize with Service Account: ${e.message}`);
-    }
-  }
-
-  // Fallback to Application Default Credentials for App Hosting environments
+  // Initialize a new app. In a Google-managed environment like App Hosting,
+  // initializeApp() automatically discovers the project's service account credentials.
   console.log('[FirebaseAdmin] Initializing with Application Default Credentials (ADC).');
-  try {
-     adminApp = initializeApp({
-        credential: applicationDefault(),
-     });
-     return adminApp;
-  } catch (e: any) {
-    console.error('[FirebaseAdmin] ADC Initialization failed.', e);
-    throw new Error(`Failed to initialize with ADC. Ensure you are in a supported Google Cloud environment. Error: ${e.message}`);
-  }
+  adminApp = initializeApp();
+  
+  return adminApp;
 }
 
 // Lazy getters for Firestore and Auth services
