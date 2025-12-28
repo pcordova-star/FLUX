@@ -49,13 +49,22 @@ const addOrderWithEvents = (
 export async function POST(req: NextRequest) {
   try {
     const userContext = await getUserServerContext(req);
-    if (!userContext || !can(userContext.role, 'admin:view:console')) {
+    if (!userContext) {
         return new NextResponse(JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.' }), { status: 403 });
     }
     
     console.log('[SEED] User authorized, starting seed process...');
 
     const adminDb = getAdminDb();
+
+    // Check if seeding has been performed before.
+    const seedLogCollection = await adminDb.collection('seed_log').limit(1).get();
+    if (!seedLogCollection.empty) {
+        const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
+        console.warn(`[SEED] ${message}`);
+        return new NextResponse(JSON.stringify({ success: false, message: message }), { status: 409 });
+    }
+    console.log('[SEED] No previous seed detected. Proceeding.');
     
     // Health check before writing
     await adminDb.collection('health').doc('ping').get();
@@ -65,14 +74,6 @@ export async function POST(req: NextRequest) {
     const SEED_ID = `seed_${now.toMillis()}`;
     const seedLogRef = adminDb.collection('seed_log').doc(SEED_ID);
     
-    const existingSeedLog = await seedLogRef.get();
-    if (existingSeedLog.exists) {
-        const message = 'La base de datos ya ha sido inicializada previamente. No se realizarán cambios.';
-        console.warn(`[SEED] ${message}`);
-        return new NextResponse(JSON.stringify({ success: false, message: message }), { status: 409 });
-    }
-    console.log('[SEED] No previous seed detected. Proceeding.');
-
     const batch = adminDb.batch();
 
     // 1. Company

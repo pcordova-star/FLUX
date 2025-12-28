@@ -23,7 +23,16 @@ export default function SeedPage() {
         const result = await response.json();
 
         if (!response.ok) {
-            // Throw an error to be caught by the catch block
+            // Special handling for 409 Conflict
+            if (response.status === 409) {
+                toast({
+                    variant: 'default', // Not a destructive error
+                    title: 'Operación Omitida',
+                    description: result.message || 'La base de datos ya fue inicializada.',
+                });
+                return; // Stop further processing
+            }
+            // Throw an error for other bad responses to be caught by the catch block
             throw new Error(result.message || `Error ${response.status}`, { cause: result.details });
         }
         
