@@ -43,6 +43,9 @@ export default function SeedPage() {
 
       } catch (error: any) {
         console.error("Error calling seed API:", error);
+        if (error.cause) {
+            console.error("Seed error details:", error.cause);
+        }
         setErrorDetails(error.cause || 'No hay detalles adicionales. Revisa los logs del servidor.');
         toast({
           variant: 'destructive',

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getAdminDb, getAdminAuth } from '@/lib/firebase-admin';
+import { getAdminDb } from '@/lib/firebase-admin';
 import { Timestamp }from 'firebase-admin/firestore';
 import type { Order, OrderEvent, OrderStatus, UserRole } from '@/lib/types';
-import { can } from '@/lib/permissions';
 import { getUserServerContext } from '@/lib/exports/authz';
 
 // This is a simplified version of the seed data structure from actions.ts
@@ -47,14 +46,20 @@ const addOrderWithEvents = (
 
 
 export async function POST(req: NextRequest) {
-  try {
-    const userContext = await getUserServerContext(req);
-    if (!userContext) {
-        return new NextResponse(JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.' }), { status: 403 });
-    }
-    
-    console.log('[SEED] User authorized, starting seed process...');
+  const userContext = await getUserServerContext(req).catch(() => null);
 
+  if (!userContext) {
+    const denyReason = "Usuario no autenticado o sesión inválida.";
+    console.warn(`[SEED][DENY] ${denyReason}`);
+    return new NextResponse(
+      JSON.stringify({ success: false, message: 'No tienes permiso para realizar esta acción.', details: { denyReason } }),
+      { status: 403 }
+    );
+  }
+  
+  console.log('[SEED][AUTH] User authenticated:', { uid: userContext.uid, role: userContext.role, companyId: userContext.companyId });
+
+  try {
     const adminDb = getAdminDb();
 
     // Check if seeding has been performed before.
@@ -66,10 +71,6 @@ export async function POST(req: NextRequest) {
     }
     console.log('[SEED] No previous seed detected. Proceeding.');
     
-    // Health check before writing
-    await adminDb.collection('health').doc('ping').get();
-    console.log('[SEED] Firestore connection confirmed.');
-
     const now = Timestamp.now();
     const SEED_ID = `seed_${now.toMillis()}`;
     const seedLogRef = adminDb.collection('seed_log').doc(SEED_ID);
