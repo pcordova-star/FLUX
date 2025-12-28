@@ -24,6 +24,8 @@ type PdfBranding = {
     mode: 'standard' | 'corporate';
 };
 
+type PdfSummaryItem = { label: string; value: string };
+
 type BuildPdfParams = {
     rows: any[];
     columns: PdfColumn[];
@@ -34,6 +36,8 @@ type BuildPdfParams = {
         dateRange: string;
     };
     branding: PdfBranding;
+    summary?: PdfSummaryItem[];
+    notes?: string[];
 };
 
 // --- Main Builder Function ---
@@ -54,11 +58,16 @@ export async function buildPdf(params: BuildPdfParams): Promise<Buffer> {
     // Draw content
     drawTable(doc, params);
     
+    // Draw notes on the last page if they exist
+    if (params.notes && params.notes.length > 0) {
+        drawNotes(doc, params.notes);
+    }
+    
     // Finalize the document and add page numbers to footer
     const pageCount = doc.bufferedPageRange().count;
     for (let i = 0; i < pageCount; i++) {
         doc.switchToPage(i);
-        drawHeader(doc, params.meta, params.branding); // Header must be drawn after switching page
+        drawHeader(doc, params); // Header must be drawn after switching page
         drawFooter(doc, i + 1, pageCount);
     }
     
@@ -72,7 +81,8 @@ export async function buildPdf(params: BuildPdfParams): Promise<Buffer> {
 
 // --- Drawing Helper Functions ---
 
-function drawHeader(doc: PDFKit.PDFDocument, meta: BuildPdfParams['meta'], branding: PdfBranding) {
+function drawHeader(doc: PDFKit.PDFDocument, params: BuildPdfParams) {
+    const { meta, branding, summary } = params;
     const startX = doc.page.margins.left;
     const startY = doc.page.margins.top;
     const endX = doc.page.width - doc.page.margins.right;
@@ -106,8 +116,42 @@ function drawHeader(doc: PDFKit.PDFDocument, meta: BuildPdfParams['meta'], brand
     doc.text(`Emitido: ${emissionDate}`, metaX, doc.y, { width: 200, align: 'right' });
 
     doc.y = Math.max(doc.y, startY + 45); // Ensure header has enough space
-    doc.moveDown(2);
+    doc.moveDown(1);
+    
+    // Draw Summary if provided
+    if (summary && summary.length > 0) {
+        drawSummary(doc, summary);
+        doc.moveDown(1);
+    }
 }
+
+function drawSummary(doc: PDFKit.PDFDocument, summary: PdfSummaryItem[]) {
+    const startX = doc.page.margins.left;
+    const availableWidth = doc.page.width - doc.page.margins.left - doc.page.margins.right;
+    const boxY = doc.y;
+
+    doc.rect(startX, boxY, availableWidth, 40).fillAndStroke(HEADER_BG_COLOR, ROW_STROKE_COLOR);
+
+    let x = startX + 15;
+    let y = boxY + 10;
+    
+    doc.font('Helvetica-Bold').fontSize(HEADER_FONT_SIZE).fillColor(FONT_COLOR)
+       .text('Resumen Ejecutivo', x, y);
+    doc.y += 10;
+    x += 120;
+    y = boxY + 8;
+
+
+    for (const item of summary) {
+        doc.font('Helvetica').fontSize(FONT_SIZE).fillColor('#6B7280').text(item.label, x, y, { width: 100, align: 'left' });
+        doc.font('Helvetica-Bold').fontSize(FONT_SIZE).fillColor(FONT_COLOR).text(item.value, x, y + 10, { width: 100, align: 'left' });
+        x += 100;
+        if (x > startX + availableWidth - 100) { break; } // Avoid overflow
+    }
+    
+    doc.y = boxY + 50;
+}
+
 
 function drawFooter(doc: PDFKit.PDFDocument, currentPage: number, totalPages: number) {
     const startX = doc.page.margins.left;
@@ -122,7 +166,7 @@ function drawFooter(doc: PDFKit.PDFDocument, currentPage: number, totalPages: nu
 }
 
 function drawTable(doc: PDFKit.PDFDocument, params: BuildPdfParams) {
-    const { rows, columns, meta, branding } = params;
+    const { rows, columns } = params;
     let y = doc.y; // Will be set by header on first page
     
     const checkNewPage = (currentY: number) => {
@@ -151,7 +195,7 @@ function drawTable(doc: PDFKit.PDFDocument, params: BuildPdfParams) {
     };
     
     // Initial setup on the first page
-    y = doc.page.margins.top; // Dummy value, will be reset by header
+    y = doc.y; // Start after header and summary
     
     // Draw table
     drawTableHeader();
@@ -171,8 +215,41 @@ function drawTable(doc: PDFKit.PDFDocument, params: BuildPdfParams) {
             x += col.width + 10;
         }
         
-        doc.y += 15; // Move y down after drawing a row
+        // Calculate max height of the row before moving Y
+        let maxHeight = 0;
+        columns.forEach(col => {
+            const text = row[col.key] !== null && row[col.key] !== undefined ? String(row[col.key]) : '';
+            const height = doc.heightOfString(text, { width: col.width });
+            if (height > maxHeight) maxHeight = height;
+        });
+        
+        doc.y += maxHeight + 5; 
         doc.moveTo(doc.page.margins.left, doc.y).lineTo(doc.page.width - doc.page.margins.right, doc.y).stroke(ROW_STROKE_COLOR);
         doc.y += 5;
     }
+}
+
+function drawNotes(doc: PDFKit.PDFDocument, notes: string[]) {
+    if (doc.y > doc.page.height - doc.page.margins.bottom - 80) {
+        doc.addPage();
+    }
+    
+    doc.moveDown(3);
+    
+    const startX = doc.page.margins.left;
+    const y = doc.y;
+    
+    doc.font('Helvetica-Bold').fontSize(10).fillColor(FONT_COLOR).text('Notas Adicionales', startX, y);
+    doc.moveDown(0.5);
+
+    const sanitizedNotes = notes
+        .map(note => note.replace(/[\r\n\t]+/g, ' ').trim()) // Sanitize
+        .filter(note => note.length > 0);
+
+    doc.font('Helvetica').fontSize(8).fillColor('#6B7280');
+    sanitizedNotes.forEach(note => {
+        // Truncate long notes
+        const truncatedNote = note.length > 250 ? note.substring(0, 250) + '...' : note;
+        doc.list([truncatedNote], { bulletRadius: 1.5, textIndent: 10 });
+    });
 }

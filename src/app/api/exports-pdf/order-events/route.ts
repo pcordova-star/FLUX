@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase-admin';
-import { OrderEvent } from '@/lib/types';
+import { Order, OrderEvent } from '@/lib/types';
 import { getUserServerContext } from '@/lib/exports/authz';
 import { Timestamp } from 'firebase-admin/firestore';
 import { can } from '@/lib/permissions';
@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     }
 
     const orderDoc = await adminDb.collection('orders').doc(orderId).get();
-    const orderData = orderDoc.data();
+    const orderData = orderDoc.data() as Order | undefined;
     if (!orderDoc.exists || !orderData || orderData.companyId !== companyId) {
       return new NextResponse(JSON.stringify({ message: 'Orden no encontrada o no autorizada.' }), { status: 404 });
     }
@@ -50,7 +50,7 @@ export async function GET(req: NextRequest) {
     const data = records.map(r => ({
         ...r,
         createdAt: r.createdAt ? format(r.createdAt.toDate(), 'dd/MM/yy HH:mm:ss') : 'N/A',
-        createdBy: r.createdBy.slice(0, 8) + '...'
+        createdBy: r.createdBy ? r.createdBy.slice(0, 8) + '...' : 'System'
     }));
 
     const columns = [
@@ -69,7 +69,11 @@ export async function GET(req: NextRequest) {
             reportSubtitle: `Eventos para la orden #${orderData.orderNumber || orderId}`,
             dateRange: `Hasta ${format(new Date(), 'yyyy-MM-dd')}`
         },
-        branding: { mode: 'corporate' }
+        branding: { mode: 'corporate' },
+        notes: [
+            'Este documento muestra la secuencia cronológica de eventos registrados para una orden específica.',
+            'Los eventos son inmutables y sirven como registro de auditoría para cada etapa del ciclo de vida de la orden.'
+        ]
     });
 
     return new NextResponse(buffer, {

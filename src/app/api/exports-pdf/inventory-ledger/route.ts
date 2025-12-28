@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       deltaQty: r.deltaQty ?? 0,
       reservedDeltaQty: r.reservedDeltaQty ?? 0,
       note: r.note || '',
-      createdBy: r.createdBy.slice(0, 8) + '...'
+      createdBy: r.createdBy ? r.createdBy.slice(0, 8) + '...' : 'System'
     }));
 
     const columns = [
@@ -64,6 +64,15 @@ export async function GET(req: NextRequest) {
       { key: 'note', label: 'Nota', width: 100 },
       { key: 'createdBy', label: 'Usuario', width: 60 },
     ];
+    
+    // Summary Calculation (in-memory)
+    const totalInbound = records.reduce((acc, r) => (r.type === 'inbound' && r.deltaQty ? acc + r.deltaQty : acc), 0);
+    const totalOutbound = records.reduce((acc, r) => (r.type === 'outbound' && r.deltaQty ? acc + Math.abs(r.deltaQty) : acc), 0);
+    const summary = [
+        { label: 'Registros Exportados', value: records.length.toString() },
+        { label: 'Unidades Entrantes', value: totalInbound.toString() },
+        { label: 'Unidades Salientes', value: totalOutbound.toString() },
+    ];
 
     const buffer = await buildPdf({
         rows: data, 
@@ -74,7 +83,12 @@ export async function GET(req: NextRequest) {
             reportSubtitle: 'Un registro detallado de todas las transacciones de stock.',
             dateRange: `${fromStr} a ${toStr}`
         },
-        branding: { mode: 'corporate' }
+        summary,
+        branding: { mode: 'corporate' },
+        notes: [
+            'Este documento es una representación de los movimientos de inventario registrados en el sistema.',
+            'Las cantidades reflejan los deltas aplicados al stock. Para el saldo final, consulte el reporte de saldos.'
+        ]
     });
 
     return new NextResponse(buffer, {

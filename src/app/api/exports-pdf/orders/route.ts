@@ -63,6 +63,20 @@ export async function GET(req: NextRequest) {
       { key: 'itemsJson', label: 'Contenido', width: 150 },
     ];
     
+    // Summary Calculation (in-memory)
+    const statusCounts = records.reduce((acc, r) => {
+        acc[r.status] = (acc[r.status] || 0) + 1;
+        return acc;
+    }, {} as Record<string, number>);
+
+    const summary = [
+        { label: 'Total de Pedidos', value: records.length.toString() },
+        { label: 'Pedidos Creados', value: (statusCounts['created'] || 0).toString() },
+        { label: 'Pedidos Despachados', value: (statusCounts['shipped'] || 0).toString() },
+        { label: 'Pedidos Entregados', value: (statusCounts['delivered'] || 0).toString() },
+    ];
+
+
     const buffer = await buildPdf({
         rows: data, 
         columns,
@@ -72,7 +86,12 @@ export async function GET(req: NextRequest) {
             reportSubtitle: 'Un resumen de los pedidos de salida registrados en el sistema.',
             dateRange: `${fromStr} a ${toStr}`
         },
-        branding: { mode: 'corporate' }
+        summary,
+        branding: { mode: 'corporate' },
+        notes: [
+            'Este reporte muestra los pedidos registrados dentro del rango de fechas especificado.',
+            'Los estados reflejan la última actualización de cada pedido al momento de la generación del reporte.'
+        ]
     });
 
     return new NextResponse(buffer, {
