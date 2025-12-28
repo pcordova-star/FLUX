@@ -31,7 +31,7 @@ export async function GET(req: NextRequest) {
     const format = searchParams.get('format') || 'csv';
     const limit = parseInt(searchParams.get('limit') || '1000', 10);
 
-    if (format === 'xlsx' && !can(role, 'admin:view:console')) {
+    if (format === 'xlsx' && !can(role, 'operator')) {
         return new NextResponse(JSON.stringify({ message: 'No tienes permiso para exportar a XLSX.' }), { status: 403 });
     }
 
