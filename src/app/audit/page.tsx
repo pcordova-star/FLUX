@@ -79,7 +79,7 @@ export default function AuditPage() {
         }
     };
     
-    const canExportXlsx = can(role, 'admin:view:console');
+    const canExportXlsx = can(role, 'operator');
 
     const renderExportButtons = (type: ExportType, requiresOrderId = false) => (
         <CardFooter className="flex-col items-start gap-4">

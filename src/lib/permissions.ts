@@ -32,6 +32,7 @@ const viewerPermissions: Action[] = [
   'inventory:read',
   'product:read',
   'warehouse:read',
+  'audit:export', // Viewers can access the audit page to export CSVs
 ];
 
 const operatorPermissions: Action[] = [
@@ -39,7 +40,6 @@ const operatorPermissions: Action[] = [
   'order:create',
   'order:update:status',
   'inventory:move',
-  'audit:export',
 ];
 
 const adminPermissions: Action[] = [

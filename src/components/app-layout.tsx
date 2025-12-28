@@ -44,13 +44,13 @@ import PageSpinner from './page-spinner';
 import { can } from '@/lib/permissions';
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, requiredRole: 'viewer' },
-  { href: '/orders', label: 'Pedidos', icon: ShoppingCart, requiredRole: 'viewer' },
-  { href: '/inventory', label: 'Inventario', icon: Package, requiredRole: 'viewer' },
-  { href: '/audit', label: 'Auditoría', icon: BookText, requiredRole: 'operator' },
-  { href: '/products', label: 'Productos', icon: Box, requiredRole: 'admin' },
-  { href: '/warehouses', label: 'Almacenes', icon: Warehouse, requiredRole: 'admin' },
-  { href: '/users', label: 'Usuarios', icon: Users, requiredRole: 'admin' },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, requiredPermission: 'order:read' }, // viewer can see dashboard
+  { href: '/orders', label: 'Pedidos', icon: ShoppingCart, requiredPermission: 'order:read' },
+  { href: '/inventory', label: 'Inventario', icon: Package, requiredPermission: 'inventory:read' },
+  { href: '/audit', label: 'Auditoría', icon: BookText, requiredPermission: 'audit:export' },
+  { href: '/products', label: 'Productos', icon: Box, requiredPermission: 'product:edit' },
+  { href: '/warehouses', label: 'Almacenes', icon: Warehouse, requiredPermission: 'warehouse:edit' },
+  { href: '/users', label: 'Usuarios', icon: Users, requiredPermission: 'user:manage' },
 ];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -64,9 +64,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
     
     // Route protection based on role
-    if (!loading && user && appUser) {
+    if (!loading && user && appUser && role) {
         const currentItem = navItems.find(item => pathname.startsWith(item.href));
-        if (currentItem && !can(role, currentItem.requiredRole as any)) {
+        if (currentItem && !can(role, currentItem.requiredPermission as any)) {
              console.warn(`[AuthGuard] Role '${role}' trying to access '${pathname}'. Redirecting.`);
              router.replace('/dashboard');
         }
@@ -107,7 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => (
-                can(role, item.requiredRole as any) && (
+                can(role, item.requiredPermission as any) && (
                     <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
                         isActive={pathname.startsWith(item.href)}
