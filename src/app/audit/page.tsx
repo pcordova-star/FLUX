@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import AppLayout from '@/components/app-layout';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,20 @@ import { EventsPreviewTimeline } from '@/components/audit/events-preview-timelin
 type ExportType = 'inventory-ledger' | 'orders' | 'order-events';
 type TabValue = 'ledger' | 'orders' | 'events';
 
+// Custom hook for debouncing
+function useDebounce<T>(value: T, delay: number): T {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
+}
+
 export default function AuditPage() {
     const { role } = useAuth();
     const [dateRange, setDateRange] = useState<DateRange | undefined>({
@@ -35,11 +49,12 @@ export default function AuditPage() {
     const [orderId, setOrderId] = useState('');
     const [activeTab, setActiveTab] = useState<TabValue>('ledger');
     
-    // Memoize the filters to prevent re-renders of preview components
+    const debouncedDateRange = useDebounce(dateRange, 300);
+
     const previewFilters = useMemo(() => ({
-        from: dateRange?.from ? startOfDay(dateRange.from).toISOString() : undefined,
-        to: dateRange?.to ? endOfDay(dateRange.to).toISOString() : undefined,
-    }), [dateRange]);
+        from: debouncedDateRange?.from ? startOfDay(debouncedDateRange.from).toISOString() : undefined,
+        to: debouncedDateRange?.to ? endOfDay(debouncedDateRange.to).toISOString() : undefined,
+    }), [debouncedDateRange]);
 
     const handleOrderSelect = (selectedOrderId: string) => {
         setOrderId(selectedOrderId);
@@ -52,6 +67,7 @@ export default function AuditPage() {
         try {
             const params = new URLSearchParams();
             params.append('format', format);
+            // Use the immediate dateRange for exports, not the debounced one
             if (dateRange?.from) params.append('from', startOfDay(dateRange.from).toISOString());
             if (dateRange?.to) params.append('to', endOfDay(dateRange.to).toISOString());
             
@@ -155,7 +171,7 @@ export default function AuditPage() {
                             <CardHeader><CardTitle>Vista Previa de Movimientos de Inventario</CardTitle></CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground -mt-4 mb-4">
-                                    Últimos movimientos registrados en el libro mayor de inventario.
+                                    Últimos 200 movimientos registrados en el libro mayor que coinciden con los filtros.
                                 </p>
                                 <LedgerPreviewTable filters={previewFilters} />
                             </CardContent>
@@ -170,7 +186,7 @@ export default function AuditPage() {
                              <CardHeader><CardTitle>Vista Previa de Pedidos</CardTitle></CardHeader>
                             <CardContent>
                                 <p className="text-sm text-muted-foreground -mt-4 mb-4">
-                                    Últimos pedidos creados en el sistema. Haz clic en una fila para ver sus eventos.
+                                    Últimos 200 pedidos creados que coinciden con los filtros. Haz clic en una fila para ver sus eventos.
                                 </p>
                                 <OrdersPreviewTable filters={previewFilters} onOrderSelect={handleOrderSelect} />
                             </CardContent>
@@ -185,7 +201,7 @@ export default function AuditPage() {
                              <CardHeader><CardTitle>Vista Previa de Eventos de Pedido</CardTitle></CardHeader>
                              <CardContent className="space-y-4">
                                <p className="text-sm text-muted-foreground -mt-4">
-                                    Introduce el ID de una orden para ver su línea de tiempo completa de eventos.
+                                    Introduce el ID de una orden para ver su línea de tiempo completa de eventos (máx. 500).
                                 </p>
                                 <div className="max-w-sm">
                                     <Label htmlFor="orderId">ID de la Orden</Label>
